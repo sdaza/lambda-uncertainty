@@ -1,0 +1,1480 @@
+
+R version 3.5.0 (2018-04-23) -- "Joy in Playing"
+Copyright (C) 2018 The R Foundation for Statistical Computing
+Platform: x86_64-redhat-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> #####################
+> # le models
+> # create shifts
+> #####################
+> 
+> # libraries, functions and options
+> library(brms)
+> library(data.table)
+> library(texreg)
+> library(stringr)
+> 
+> source('/home/s/sdaza/00projects/lambda/src/functions.R')
+> options(mc.cores = parallel::detectCores()-5)
+> 
+> seed = 103231
+> 
+> # read data
+> df = fread('/home/s/sdaza/00projects/lambda/data/featured_LE_data.csv')
+> setorder(df, ctry, year)
+> 
+> country_labels = c("Argentina", "Bolivia", "Brazil", "Chile", "Colombia",
++                "Costa_Rica", "Cuba", "Dominican_Republic", "Ecuador",
++                "El_Salvador", "Guatemala", "Honduras", "Mexico", "Nicaragua",
++                "Panama", "Paraguay", "Peru", "Uruguay", "Venezuela")
+> 
+> ################################
+> # 1900 no time adjustment
+> ################################
+> 
+> # set prior of betas to normal(0,5)
+> prior = set_prior("normal(0, 5)", class = "b")
+> 
+> m1.1 = brm(formula = wy ~ 1 + igdp_log  + (igdp_log|ctry_year),
++            data = df,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 28.55 seconds (Warm-up)
+Chain 1:                24.02 seconds (Sampling)
+Chain 1:                52.57 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 29.79 seconds (Warm-up)
+Chain 2:                31.41 seconds (Sampling)
+Chain 2:                61.2 seconds (Total)
+Chain 2: 
+> 
+> m1.2 = brm(formula = wy ~ 1 + igdp_log  + iurban_log +  (igdp_log|ctry_year),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 34.79 seconds (Warm-up)
+Chain 2:                32.45 seconds (Sampling)
+Chain 2:                67.24 seconds (Total)
+Chain 2: 
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 35.98 seconds (Warm-up)
+Chain 1:                33.96 seconds (Sampling)
+Chain 1:                69.94 seconds (Total)
+Chain 1: 
+> 
+> m1.3 = brm(formula = wy ~ 1 + igdp_log  + ilit_log +  (igdp_log|ctry_year),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 35.74 seconds (Warm-up)
+Chain 1:                32.86 seconds (Sampling)
+Chain 1:                68.6 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 36.69 seconds (Warm-up)
+Chain 2:                32.91 seconds (Sampling)
+Chain 2:                69.6 seconds (Total)
+Chain 2: 
+> 
+> m1.4 = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + (igdp_log|ctry_year),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior,
++           control=  list(adapt_delta=0.90))
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 43.83 seconds (Warm-up)
+Chain 2:                34.51 seconds (Sampling)
+Chain 2:                78.34 seconds (Total)
+Chain 2: 
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 44.28 seconds (Warm-up)
+Chain 1:                36.14 seconds (Sampling)
+Chain 1:                80.42 seconds (Total)
+Chain 1: 
+> 
+> loo1.1 = loo(m1.1, reloo=TRUE)
+> loo1.2 = loo(m1.2, reloo=TRUE)
+> loo1.3 = loo(m1.3, reloo=TRUE)
+> loo1.4 = loo(m1.4, reloo=TRUE)
+> 
+> # stacking
+> loo_list = list(loo1.1, loo1.2, loo1.3, loo1.4)
+> weights_models = as.vector(loo_model_weights(loo_list))
+> print(weights_models)
+[1] 1.422975e-02 5.045747e-07 1.705139e-02 9.687184e-01
+> 
+> models = list(m1.1, m1.2, m1.3, m1.4)
+> 
+> # stacking
+> 
+> est_shifts = compute_shifts(models = models,
++                         weights = weights_models,
++                         data = df,
++                         obs_var = 'Ex',
++                         transform = TRUE,
++                         countries = country_labels,
++                         years = c(1930, 1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts, '/home/s/sdaza/00projects/lambda/output/shift_1900_stacking.csv')
+> 
+> # gdp only
+> est_shifts = compute_shifts(models = list(m1.1),
++                         data = df,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1930, 1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts, '/home/s/sdaza/00projects/lambda/output/shift_1900_gdponly.csv')
+> 
+> ################################
+> # 1900 time adjustment
+> ################################
+> 
+> m1.1.year = brm(formula = wy ~ 1 + igdp_log + zyear + (igdp_log|ctry_year),
++            data = df,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0.01 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 100 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 34.2 seconds (Warm-up)
+Chain 1:                21.54 seconds (Sampling)
+Chain 1:                55.74 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 32.15 seconds (Warm-up)
+Chain 2:                31.16 seconds (Sampling)
+Chain 2:                63.31 seconds (Total)
+Chain 2: 
+> 
+> m1.2.year = brm(formula = wy ~ 1 + igdp_log  + iurban_log + zyear + (igdp_log|ctry_year),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 38.39 seconds (Warm-up)
+Chain 1:                34.08 seconds (Sampling)
+Chain 1:                72.47 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 38.64 seconds (Warm-up)
+Chain 2:                35.05 seconds (Sampling)
+Chain 2:                73.69 seconds (Total)
+Chain 2: 
+> 
+> m1.3.year = brm(formula = wy ~ 1 + igdp_log  + ilit_log + zyear +  (igdp_log|ctry_year),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 34.66 seconds (Warm-up)
+Chain 1:                29.17 seconds (Sampling)
+Chain 1:                63.83 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 38.16 seconds (Warm-up)
+Chain 2:                36.22 seconds (Sampling)
+Chain 2:                74.38 seconds (Total)
+Chain 2: 
+> 
+> m1.4.year = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + zyear + (igdp_log|ctry_year),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior)
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+
+SAMPLING FOR MODEL 'c819884fd7ccb1eab5825ed70d247c40' NOW (CHAIN 2).
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 37.16 seconds (Warm-up)
+Chain 1:                34.41 seconds (Sampling)
+Chain 1:                71.57 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 38.04 seconds (Warm-up)
+Chain 2:                36.05 seconds (Sampling)
+Chain 2:                74.09 seconds (Total)
+Chain 2: 
+> 
+> 
+> loo1.1.year = loo(m1.1.year, reloo=TRUE)
+> loo1.2.year = loo(m1.2.year, reloo=TRUE)
+> loo1.3.year = loo(m1.3.year, reloo=TRUE)
+> loo1.4.year = loo(m1.4.year, reloo=TRUE)
+> 
+> # stacking
+> models_year = list(m1.1.year, m1.2.year, m1.3.year, m1.4.year)
+> 
+> loo_list_year = list(loo1.1.year, loo1.2.year, loo1.3.year, loo1.4.year)
+> weights_models_year = as.vector(loo_model_weights(loo_list_year))
+> 
+> # stacking
+> est_shifts_year = compute_shifts(models = models_year,
++                         weights = weights_models_year,
++                         data = df,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1930, 1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts_year, '/home/s/sdaza/00projects/lambda/output/shift_1900_stacking_year.csv')
+> 
+> # gdp only
+> est_shifts_year = compute_shifts(models = list(m1.1.year),
++                         data = df,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1930, 1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts_year, '/home/s/sdaza/00projects/lambda/output/shift_1900_gdponly_year.csv')
+> 
+> ################################
+> # 1900 autocorrelation
+> ################################
+> 
+> m1.1.corr = brm(formula = wy ~ 1 + igdp_log + (igdp_log|ctry_year),
++           autocor = cor_ar(~wy|ctry, p = 1),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior,
++           control=  list(adapt_delta=0.90))
+
+SAMPLING FOR MODEL 'b3bf45c1093d553d0c0c87507ba3824c' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'b3bf45c1093d553d0c0c87507ba3824c' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 33.29 seconds (Warm-up)
+Chain 2:                11.58 seconds (Sampling)
+Chain 2:                44.87 seconds (Total)
+Chain 2: 
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 32.06 seconds (Warm-up)
+Chain 1:                14.84 seconds (Sampling)
+Chain 1:                46.9 seconds (Total)
+Chain 1: 
+> 
+> m1.4.corr = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + (igdp_log|ctry_year),
++           autocor = cor_ar(~wy|ctry, p = 1),
++           data = df,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior,
++           control=  list(adapt_delta=0.90))
+
+SAMPLING FOR MODEL 'b3bf45c1093d553d0c0c87507ba3824c' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'b3bf45c1093d553d0c0c87507ba3824c' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 43.03 seconds (Warm-up)
+Chain 2:                19.27 seconds (Sampling)
+Chain 2:                62.3 seconds (Total)
+Chain 2: 
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 46.41 seconds (Warm-up)
+Chain 1:                23.29 seconds (Sampling)
+Chain 1:                69.7 seconds (Total)
+Chain 1: 
+> 
+> est_shifts_corr = compute_shifts(models = list(m1.1.corr),
++                         data = df,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1930, 1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts_corr, '/home/s/sdaza/00projects/lambda/output/shift_1900_gdponly_autocorrelation.csv')
+> 
+> est_shifts_corr = compute_shifts(models = list(m1.4.corr),
++                         data = df,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1930, 1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts_corr, '/home/s/sdaza/00projects/lambda/output/shift_1900_full_autocorrelation.csv')
+> 
+> 
+> # table
+> 
+> ncountries_1900 = length(unique(df$ctry))
+> avg_years_1900 = round(mean(df[, .N, ctry]$N), 0)
+> 
+> name.map  <- list('Intercept' = "Intercept",
++                  igdp_log = "Log GDP",
++                  iurban_log = "Log Urbanity Rate",
++                  ilit_log = "Log Literacy Rate",
++                  zyear = 'Standardized Year',
++                  'sd(Intercept)' = 'Intercept SD',
++                  'sd(igdp_log)' = 'Log GDP Coef SD',
++                  'cor(Intercept,igdp_log)' = 'Correlation Intercept - GDP Coef'
++                  )
+> 
+> models <- list(m1.1, m1.2, m1.3, m1.4, m1.4.year)
+> 
+> texreg(models, include.r2 = TRUE, include.loo = TRUE,
++     stars = 0,
++ #     custom.gof.names =c("Deaths", "Person-years"),
++ #     custom.model.names = c("M1", "M1 MSM", "M2", "M2 MSM"),
++     groups = list("Fixed Effects" = 1:5, "Random Effects" = 6:8),
++     custom.coef.map = name.map,
++     custom.note = "Year blocks: $<$1950, 1950-1969, 1970-1989, 1990$+$. Ony the GPD coefficient is random.",
++     booktabs = TRUE,
++     dcolumn = TRUE,
++     use.packages = FALSE,
++     label = "le_1900",
++     caption = paste("Multivel Models Weibull Transformation of Life Expectancy 1900,\\newline", ncountries_1900, "countries,",
++                     avg_years_1900, "average time points"),
++     caption.above = TRUE,
++     fontsize = "scriptsize",
++     float.pos = "htp",
++     file = "/home/s/sdaza/00projects/lambda/output/tables/le_1900.tex"
++     )
+> 
+> 
+> ################################
+> # 1950 no time adjustment
+> ################################
+> 
+> # select data since 1950
+> df50 = copy(df[year>=1950])
+> 
+> # set prior of betas to normal(0,5)
+> prior = set_prior("normal(0, 5)", class = "b")
+> 
+> m2.1 = brm(formula = wy ~ 1 + igdp_log + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 20.1 seconds (Warm-up)
+Chain 2:                17.96 seconds (Sampling)
+Chain 2:                38.06 seconds (Total)
+Chain 2: 
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 21.52 seconds (Warm-up)
+Chain 1:                17.33 seconds (Sampling)
+Chain 1:                38.85 seconds (Total)
+Chain 1: 
+> 
+> m2.2 = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior,
++            control=list(max_treedepth=15))
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0.01 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 100 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 24.88 seconds (Warm-up)
+Chain 1:                22.14 seconds (Sampling)
+Chain 1:                47.02 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 26.55 seconds (Warm-up)
+Chain 2:                24.48 seconds (Sampling)
+Chain 2:                51.03 seconds (Total)
+Chain 2: 
+> 
+> m2.3 = brm(formula = wy ~ 1 + igdp_log + iwater_log + isewage_log + ielec_log + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 22.54 seconds (Warm-up)
+Chain 2:                23.44 seconds (Sampling)
+Chain 2:                45.98 seconds (Total)
+Chain 2: 
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 23.43 seconds (Warm-up)
+Chain 1:                24.65 seconds (Sampling)
+Chain 1:                48.08 seconds (Total)
+Chain 1: 
+> 
+> m2.4 = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + iwater_log +
++             isewage_log + ielec_log + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 26.88 seconds (Warm-up)
+Chain 1:                17.75 seconds (Sampling)
+Chain 1:                44.63 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 25.64 seconds (Warm-up)
+Chain 2:                24.57 seconds (Sampling)
+Chain 2:                50.21 seconds (Total)
+Chain 2: 
+> 
+> loo2.1 = loo(m2.1, reloo=TRUE)
+> loo2.2 = loo(m2.2, reloo=TRUE)
+> loo2.3 = loo(m2.3, reloo=TRUE)
+> loo2.4 = loo(m2.4, reloo=TRUE)
+> 
+> loo_2_list = list(loo2.1, loo2.2, loo2.3, loo2.4)
+> weights_models_2 = as.vector(loo_model_weights(loo_2_list))
+> models_2 = list(m2.1, m2.2, m2.3, m2.4)
+> 
+> 
+> # stacking
+> est_shifts = compute_shifts(models = models_2,
++                         weights = weights_models_2,
++                         data = df50,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts, '/home/s/sdaza/00projects/lambda/output/shift_1950_stacking.csv')
+> 
+> # gdp only
+> est_shifts = compute_shifts(models = list(m2.1),
++                         data = df50,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts, '/home/s/sdaza/00projects/lambda/output/shift_1950_gdponly.csv')
+> 
+> 
+> ################################
+> # 1950 time adjustment
+> ################################
+> 
+> m2.1.year = brm(formula = wy ~ 1 + igdp_log + zyear + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 17.37 seconds (Warm-up)
+Chain 1:                11.08 seconds (Sampling)
+Chain 1:                28.45 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 17.84 seconds (Warm-up)
+Chain 2:                11.5 seconds (Sampling)
+Chain 2:                29.34 seconds (Total)
+Chain 2: 
+> 
+> m2.2.year = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + zyear + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0.01 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 100 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 18.63 seconds (Warm-up)
+Chain 1:                12.91 seconds (Sampling)
+Chain 1:                31.54 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 19.67 seconds (Warm-up)
+Chain 2:                14.16 seconds (Sampling)
+Chain 2:                33.83 seconds (Total)
+Chain 2: 
+> 
+> m2.3.year = brm(formula = wy ~ 1 + igdp_log + iwater_log + isewage_log + ielec_log + zyear + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 19.59 seconds (Warm-up)
+Chain 2:                12.03 seconds (Sampling)
+Chain 2:                31.62 seconds (Total)
+Chain 2: 
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 19.41 seconds (Warm-up)
+Chain 1:                12.29 seconds (Sampling)
+Chain 1:                31.7 seconds (Total)
+Chain 1: 
+> 
+> m2.4.year = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + iwater_log +
++             isewage_log + ielec_log + zyear + (igdp_log|ctry_year),
++            data = df50,
++            iter = 2000,
++            chains = 2,
++            seed = seed,
++            prior=prior)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fa8902a3337261524404419ae71df000' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 21.14 seconds (Warm-up)
+Chain 1:                14.04 seconds (Sampling)
+Chain 1:                35.18 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 22.4 seconds (Warm-up)
+Chain 2:                13.04 seconds (Sampling)
+Chain 2:                35.44 seconds (Total)
+Chain 2: 
+> 
+> loo2.1.year = loo(m2.1.year, reloo=TRUE)
+> loo2.2.year = loo(m2.2.year, reloo=TRUE)
+> loo2.3.year = loo(m2.3.year, reloo=TRUE)
+> loo2.4.year = loo(m2.4.year, reloo=TRUE)
+> 
+> loo_2_list_year = list(loo2.1.year, loo2.2.year, loo2.3.year, loo2.4.year)
+> weights_models_2_year = as.vector(loo_model_weights(loo_2_list_year))
+> models_2_year = list(m2.1.year, m2.2.year, m2.3.year, m2.4.year)
+> 
+> 
+> # stacking
+> est_shifts_year = compute_shifts(models = models_2_year,
++                         weights = weights_models_2_year,
++                         data = df50,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts_year, '/home/s/sdaza/00projects/lambda/output/shift_1950_stacking_year.csv')
+> 
+> # gdp only
+> est_shifts_year = compute_shifts(models = list(m2.1.year),
++                         data = df50,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1950, 1970, 1990, 2010))
+> 
+> 
+> fwrite(est_shifts_year, '/home/s/sdaza/00projects/lambda/output/shift_1950_gdponly_year.csv')
+> 
+> ################################
+> # 1950 autocorrelation
+> ################################
+> 
+> m2.1.corr = brm(formula = wy ~ 1 + igdp_log + (igdp_log|ctry_year),
++           autocor = cor_ar(~wy|ctry, p = 1),
++           data = df50,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior,
++           control=  list(adapt_delta=0.90))
+
+SAMPLING FOR MODEL 'fe9d3f19801514b7ecb4328152eb8b71' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fe9d3f19801514b7ecb4328152eb8b71' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 16.5 seconds (Warm-up)
+Chain 1:                7.24 seconds (Sampling)
+Chain 1:                23.74 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 16.89 seconds (Warm-up)
+Chain 2:                8.44 seconds (Sampling)
+Chain 2:                25.33 seconds (Total)
+Chain 2: 
+> 
+> m2.4.corr = brm(formula = wy ~ 1 + igdp_log + ilit_log + iurban_log + iwater_log +
++             isewage_log + ielec_log + (igdp_log|ctry_year),
++           autocor = cor_ar(~wy|ctry, p = 1),
++           data = df50,
++           iter = 2000,
++           chains = 2,
++           seed = seed,
++           prior = prior,
++           control=  list(adapt_delta=0.90))
+
+SAMPLING FOR MODEL 'fe9d3f19801514b7ecb4328152eb8b71' NOW (CHAIN 1).
+Chain 1: 
+Chain 1: Gradient evaluation took 0 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 1: Adjust your expectations accordingly!
+Chain 1: 
+Chain 1: 
+Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'fe9d3f19801514b7ecb4328152eb8b71' NOW (CHAIN 2).
+Chain 2: 
+Chain 2: Gradient evaluation took 0 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0 seconds.
+Chain 2: Adjust your expectations accordingly!
+Chain 2: 
+Chain 2: 
+Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 1: 
+Chain 1:  Elapsed Time: 20.75 seconds (Warm-up)
+Chain 1:                7.27 seconds (Sampling)
+Chain 1:                28.02 seconds (Total)
+Chain 1: 
+Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+Chain 2: 
+Chain 2:  Elapsed Time: 21.88 seconds (Warm-up)
+Chain 2:                7.73 seconds (Sampling)
+Chain 2:                29.61 seconds (Total)
+Chain 2: 
+> 
+> # gdp only
+> est_shifts_corr = compute_shifts(models = list(m2.1.corr),
++                         data = df50,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts_corr, '/home/s/sdaza/00projects/lambda/output/shift_1950_gdponly_autocorrelation.csv')
+> 
+> # full
+> est_shifts_corr = compute_shifts(models = list(m2.4.corr),
++                         data = df50,
++                         transform = TRUE,
++                         obs_var = 'Ex',
++                         countries = country_labels,
++                         years = c(1950, 1970, 1990, 2010))
+> 
+> fwrite(est_shifts_corr, '/home/s/sdaza/00projects/lambda/output/shift_1950_full_autocorrelation.csv')
+> 
+> 
+> # table
+> 
+> ncountries_1950 = length(unique(df50$ctry))
+> avg_years_1950 = round(mean(df50[, .N, ctry]$N), 0)
+> 
+> name.map  <- list('Intercept' = "Intercept",
++                  igdp_log = "Log GDP",
++                  iurban_log = "Log Urbanity Rate",
++                  ilit_log = "Log Literacy Rate",
++                  iwater_log = "Log Water Rate",
++                  isewage_log = "Log Sewage Rate",
++                  ielec_log = "Log Electricity Rate",
++                  zyear = 'Standardized Year',
++                  'sd(Intercept)' = 'Intercept SD',
++                  'sd(igdp_log)' = 'Log GDP Coef SD',
++                  'cor(Intercept,igdp_log)' = 'Correlation Intercept - GDP Coef'
++                  )
+> 
+> # length(name.map)
+> 
+> models <- list(m2.1, m2.2, m2.3, m2.4, m2.4.year)
+> 
+> texreg(models, include.r2 = TRUE, include.loo = TRUE,
++     stars = 0,
++ #     custom.gof.names =c("Deaths", "Person-years"),
++ #     custom.model.names = c("M1", "M1 MSM", "M2", "M2 MSM"),
++     groups = list("Fixed Effects" = 1:5, "Random Effects" = 6:8),
++     custom.coef.map = name.map,
++     custom.note = "Year blocks: 1950-1969, 1970-1989, 1990$+$. Ony the GPD coefficient is random.",
++     booktabs = TRUE,
++     dcolumn = TRUE,
++     use.packages = FALSE,
++     label = "le_1950",
++     caption = paste("Multivel Models Weibull Transformation of Life Expectancy 1950,\\newline", ncountries_1950, "countries,",
++                     avg_years_1950, "average time points"),
++     caption.above = TRUE,
++     fontsize = "scriptsize",
++     float.pos = "htp",
++     file = "/home/s/sdaza/00projects/lambda/output/tables/le_1950.tex"
++     )
+> 

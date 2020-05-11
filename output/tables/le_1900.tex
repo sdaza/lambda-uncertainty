@@ -1,0 +1,41 @@
+
+\begin{table}[htp]
+\caption{Multivel Models Weibull Transformation of Life Expectancy 1900,\newline 19 countries, 97 average time points}
+\begin{center}
+\begin{scriptsize}
+\begin{tabular}{l D{.}{.}{5.3} D{.}{.}{5.3} D{.}{.}{5.3} D{.}{.}{5.3} D{.}{.}{5.3} }
+\toprule
+ & \multicolumn{1}{c}{Model 1} & \multicolumn{1}{c}{Model 2} & \multicolumn{1}{c}{Model 3} & \multicolumn{1}{c}{Model 4} & \multicolumn{1}{c}{Model 5} \\
+\midrule
+Fixed Effects                          &        &        &        &        &        \\
+                                       &        &        &        &        &        \\
+\quad Intercept                        & 0.34   & 0.26   & 0.21   & 0.22   & 0.25   \\
+                                       & (0.06) & (0.05) & (0.05) & (0.05) & (0.04) \\
+\quad Log GDP                          & 0.76   & 0.46   & 0.44   & 0.41   & 0.30   \\
+                                       & (0.08) & (0.07) & (0.08) & (0.07) & (0.06) \\
+\quad Log Urbanity Rate                &        & 0.69   &        & 0.35   & 0.05   \\
+                                       &        & (0.02) &        & (0.03) & (0.03) \\
+\quad Log Literacy Rate                &        &        & 0.88   & 0.56   & -0.21  \\
+                                       &        &        & (0.02) & (0.03) & (0.04) \\
+\quad Standardized Year                &        &        &        &        & 0.46   \\
+                                       &        &        &        &        & (0.02) \\
+Random Effects                         &        &        &        &        &        \\
+                                       &        &        &        &        &        \\
+\quad Intercept SD                     & 0.54   & 0.46   & 0.40   & 0.41   & 0.31   \\
+                                       & (0.05) & (0.04) & (0.04) & (0.04) & (0.03) \\
+\quad Log GDP Coef SD                  & 0.67   & 0.61   & 0.62   & 0.61   & 0.45   \\
+                                       & (0.07) & (0.06) & (0.06) & (0.06) & (0.04) \\
+\quad Correlation Intercept - GDP Coef & 0.07   & 0.16   & -0.01  & 0.07   & 0.12   \\
+                                       & (0.13) & (0.12) & (0.13) & (0.13) & (0.13) \\
+\midrule
+Num. obs.                              & 1848   & 1848   & 1848   & 1848   & 1848   \\
+Num. obs.  ctry\_year                  & 74     & 74     & 74     & 74     & 74     \\
+LOO Information Criterion              & -2852  & -3887  & -3990  & -4165  & -4732  \\
+Bayes $R^2$                            & 0.97   & 0.98   & 0.98   & 0.99   & 0.99   \\
+\bottomrule
+\multicolumn{6}{l}{\tiny{Year blocks: $<$1950, 1950-1969, 1970-1989, 1990$+$. Ony the GPD coefficient is random.}}
+\end{tabular}
+\end{scriptsize}
+\label{le_1900}
+\end{center}
+\end{table}

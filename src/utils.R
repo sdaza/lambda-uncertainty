@@ -1,12 +1,81 @@
-# lambda project
+########################
+# utilities
 # author: sebastian daza
+########################
 
-
-# functions
 
 # get original values from weibull transformation
 get_orig_values_weibull = function(x, max_value) {
     return ( (1 - exp(-exp(x))) * max_value )
+}
+
+
+lookvar = function(dat, varnames) {
+    n = names(dat)
+    nn = list()
+    for (i in 1:length(varnames)) {
+        nn[[i]] = grep(varnames[i],n)
+    }
+
+    nn = unlist(nn)
+
+    if ( length(nn) >0 )
+    {
+        r = n[nn]
+        return(r)
+    }
+    else { return("No variables found") }
+}
+
+
+countmis = function(dat, vars = NULL, pct = TRUE, exclude.complete = TRUE) {
+
+    if (is.null(vars)) {
+        vars = names(dat)
+    }
+
+    mis = sort(sapply(dat[, vars, with = FALSE],
+        function(x) sum(is.na(x))), decreasing = TRUE)
+
+    if (exclude.complete == TRUE) {
+         mis = mis[mis > 0]
+    }
+
+    if (pct == FALSE)
+        { return(mis) }
+    else if ( pct == TRUE ) {
+        return( round(mis / nrow(dat), 3))
+    }
+    return(mis)
+}
+
+
+getMax = function(x) {
+    x = na.omit(x)
+    if (length(x) == 0) {
+        return(NA_real_)
+    } else {
+        return(max(x))
+    }
+}
+
+
+getMin = function(x) {
+    x = na.omit(x)
+    if (length(x) == 0) {
+        return(NA_real_)
+    } else {
+        return(min(x))
+  }
+}
+
+
+savepdf = function(file, width = 16, height = 10, mgp = c(2.2,0.45,0),
+    tcl = -0.4, mar = c(3.3,3.6,1.1,1.1)) {
+    fname = paste0(file, ".pdf")
+    pdf(fname, width=width / 2.54, height = height / 2.54,
+        pointsize = 10)
+    par(mgp = mgp, tcl = tcl, mar = mar)
 }
 
 # shifts with stacking for only one country (auxiliary function)
@@ -181,11 +250,10 @@ compute_shifts = function(models = NULL, # list of models
     results[, c('ctry', 'year', 'segment') := tstrsplit(name, ".", fixed=TRUE)][,
                                         num_models := length(models)]
 
-    return(results[, .(ctry, year, segment, num_models, obs, pred, counterfactual, shift_obs, shift_pred)])
+    return(results[, .(ctry, year, segment, num_models, obs, pred,
+        counterfactual, shift_obs, shift_pred)])
 
 }
-
-
 
 
 # lags with stacking for only one country (auxiliary function)

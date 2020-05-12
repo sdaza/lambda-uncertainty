@@ -1,44 +1,41 @@
-#####################
-# le models
-# create shifts
-#####################
+############################
+# non-bootstrap shift estimation
+# author: sebastian daza
+############################
 
 # R < /home/s/sdaza/00projects/lambda/src/le_models.R > /home/s/sdaza/00projects/lambda/output/le_models.log  --no-save  &
 
-
 # libraries, functions and options
 library(brms)
+library(loo)
 library(data.table)
 library(texreg)
 library(stringr)
 
-source('/home/s/sdaza/00projects/lambda/src/functions.R')
-options(mc.cores = parallel::detectCores()-5)
-
+source('src/utils.R')
+# options(mc.cores = parallel::detectCores()-5)
 seed = 103231
 
 # read data
-df = fread('/home/s/sdaza/00projects/lambda/data/featured_LE_data.csv')
+df = fread('data/featured_LE_data.csv')
 setorder(df, ctry, year)
 
 country_labels = c("Argentina", "Bolivia", "Brazil", "Chile", "Colombia",
-               "Costa_Rica", "Cuba", "Dominican_Republic", "Ecuador",
-               "El_Salvador", "Guatemala", "Honduras", "Mexico", "Nicaragua",
-               "Panama", "Paraguay", "Peru", "Uruguay", "Venezuela")
+    "Costa_Rica", "Cuba", "Dominican_Republic", "Ecuador",
+    "El_Salvador", "Guatemala", "Honduras", "Mexico", "Nicaragua",
+    "Panama", "Paraguay", "Peru", "Uruguay", "Venezuela")
 
-################################
 # 1900 no time adjustment
-################################
 
 # set prior of betas to normal(0,5)
 prior = set_prior("normal(0, 5)", class = "b")
 
-m1.1 = brm(formula = wy ~ 1 + igdp_log  + (igdp_log|ctry_year),
+m1.1 = brm(formula = wy ~ 1 + igdp_log + (igdp_log|ctry_year),
            data = df,
            iter = 10000,
            chains = 5,
            seed = seed,
-           prior=prior)
+           prior = prior)
 
 m1.2 = brm(formula = wy ~ 1 + igdp_log  + iurban_log +  (igdp_log|ctry_year),
           data = df,
@@ -71,11 +68,9 @@ loo1.4 = loo(m1.4, reloo=TRUE)
 loo_list = list(loo1.1, loo1.2, loo1.3, loo1.4)
 weights_models = as.vector(loo_model_weights(loo_list))
 print(weights_models)
-
 models = list(m1.1, m1.2, m1.3, m1.4)
 
 # stacking
-
 est_shifts = compute_shifts(models = models,
                         weights = weights_models,
                         data = df,
@@ -85,10 +80,10 @@ est_shifts = compute_shifts(models = models,
                         countries = country_labels,
                         years = c(1930, 1950, 1970, 1990, 2010))
 
-fwrite(est_shifts, '/home/s/sdaza/00projects/lambda/output/shift_1900_stacking.csv')
-saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_shift_1900_stacking.rds')
+fwrite(est_shifts, 'output/shift_1900_stacking.csv')
+saveRDS(weights_models, 'output/model_weights_shift_1900_stacking.rds')
 
-# # gdp only
+# # individual models gdp only
 # est_shifts = compute_shifts(models = list(m1.1),
 #                         data = df,
 #                         transform = TRUE,
@@ -96,11 +91,9 @@ saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_sh
 #                         countries = country_labels,
 #                         years = c(1930, 1950, 1970, 1990, 2010))
 
-# fwrite(est_shifts, '/home/s/sdaza/00projects/lambda/output/shift_1900_gdponly.csv')
+# fwrite(est_shifts, 'output/shift_1900_gdponly.csv')
 
-# ################################
 # # 1900 time adjustment
-# ################################
 
 # m1.1.year = brm(formula = wy ~ 1 + igdp_log + zyear + (igdp_log|ctry_year),
 #            data = df,
@@ -129,7 +122,6 @@ saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_sh
 #           chains = 2,
 #           seed = seed,
 #           prior = prior)
-
 
 # loo1.1.year = loo(m1.1.year, reloo=TRUE)
 # loo1.2.year = loo(m1.2.year, reloo=TRUE)
@@ -355,7 +347,6 @@ saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_sh
 # weights_models_2_year = as.vector(loo_model_weights(loo_2_list_year))
 # models_2_year = list(m2.1.year, m2.2.year, m2.3.year, m2.4.year)
 
-
 # # stacking
 # est_shifts_year = compute_shifts(models = models_2_year,
 #                         weights = weights_models_2_year,
@@ -374,7 +365,6 @@ saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_sh
 #                         obs_var = 'Ex',
 #                         countries = country_labels,
 #                         years = c(1950, 1970, 1990, 2010))
-
 
 # fwrite(est_shifts_year, '/home/s/sdaza/00projects/lambda/output/shift_1950_gdponly_year.csv')
 
@@ -427,7 +417,7 @@ saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_sh
 # ncountries_1950 = length(unique(df50$ctry))
 # avg_years_1950 = round(mean(df50[, .N, ctry]$N), 0)
 
-# name.map  <- list('Intercept' = "Intercept",
+# name.map  = list('Intercept' = "Intercept",
 #                  igdp_log = "Log GDP",
 #                  iurban_log = "Log Urbanity Rate",
 #                  ilit_log = "Log Literacy Rate",
@@ -442,7 +432,7 @@ saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_sh
 
 # # length(name.map)
 
-# models <- list(m2.1, m2.2, m2.3, m2.4, m2.4.year)
+# models = list(m2.1, m2.2, m2.3, m2.4, m2.4.year)
 
 # texreg(models, include.r2 = TRUE, include.loo = TRUE,
 #     stars = 0,
@@ -460,5 +450,5 @@ saveRDS(weights_models, '/home/s/sdaza/00projects/lambda/output/model_weights_sh
 #     caption.above = TRUE,
 #     fontsize = "scriptsize",
 #     float.pos = "htp",
-#     file = "/home/s/sdaza/00projects/lambda/output/tables/le_1950.tex"
+#     file = "output/tables/le_1950.tex"
 #     )

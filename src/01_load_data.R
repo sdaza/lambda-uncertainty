@@ -16,7 +16,7 @@ set.seed(seed)
 source("src/utils.R")
 
 # laod data
-df = data.table(read_stata('data/Ex_LA1850-2013_SES_ABBREVIATED_april-3-2018.dta'))
+df = data.table(read_stata('data/le-1850-2013-abbr-2018-03-03.dta'))
 
 # add country labels
 country_labels = c("Argentina", "Bolivia", "Brazil", "Chile", "Colombia",
@@ -33,6 +33,7 @@ covariates = c("gdp_pc", "urban", "elec", "lit" ,"water" ,"sewage" ,"gini" ,
 c = df[tseries2 == 1 & age == 0 & year >= 1900, lapply(.SD, getMax),
     .SDcols = covariates, .(ctry, year)]
 
+# average men and women
 le = df[tseries2==1 & age == 0 & year>=1900,
     .(Ex = mean(Ex, na.rm = TRUE)), .(ctry, year)]
 

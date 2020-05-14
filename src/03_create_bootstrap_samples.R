@@ -13,15 +13,29 @@ country_labels = c("Argentina", "Bolivia", "Brazil", "Chile", "Colombia",
                    "El_Salvador", "Guatemala", "Honduras", "Mexico", "Nicaragua",
                    "Panama", "Paraguay", "Peru", "Uruguay", "Venezuela")
 df[, ctry := factor(ctry, labels=country_labels)]
-
 df = melt(df, id_vars = c('ctry', 'year'), measure = patterns("^Ex", "^pr"),
     value.name = c("le", "pr"))
 df = df[!is.na(le)]
 setorder(df, ctry, year)
 
+
 df[ctry == "Argentina" & year == 1869][, mean(le)]
-dft[ctry == "Argentina" & year == 1869]
-covs = fread('data/featured_LE_data.csv')
+df[ctry == "Argentina" & year == 1900]
+df[, le := round(le, 2)]
+
+
+covs = fread('data/featured_LE_data.csv')[, .(ctry, year, Ex)]
+setnames(covs, "Ex", "le")
+covs[, le := round(le, 2)]
+df[, max_pr := max(pr), .(ctry, year)]
+
+test = merge(covs, df, all.x = TRUE, by = c("ctry", "year", "le"))
+summary(test)
+test[is.na(pr)]
+test[pr < max_pr]
+
+test[is.na(pr)]
+covs[ctry == "Argentina" & year == 1900]
 covs[, c("Ex", "y", "wy", "max_le") := NULL]
 df = merge(df, covs, by = c('ctry','year'))
 

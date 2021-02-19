@@ -10,6 +10,33 @@ get_orig_values_weibull = function(x, max_value) {
 }
 
 
+getSample = function(x) {
+    if (length(x) > 1) {
+        s = sample(x, 1)
+    } else {
+        s = x
+    }
+    return(s)
+}
+
+table = function (...) base::table(..., useNA = 'ifany')
+
+
+cor = function (...) stats::cor(..., use = "complete.obs")
+
+
+nlocf = function(x) {
+    which.na = c(which(!is.na(x)), length(x) + 1)
+    values = na.omit(x)
+    if (which.na[1] != 1) {
+        which.na = c(1, which.na)
+        values = c(values[1], values)
+    }
+    diffs = diff(which.na)
+    return(rep(values, times = diffs))
+}
+
+
 lookvar = function(dat, varnames) {
     n = names(dat)
     nn = list()
@@ -86,7 +113,7 @@ estimate_shift = function(models=NULL, # list
                           data=NULL, # data.table
                           country=NULL, # string
                           obs_var = NULL,
-                          weights= NULL, # vector, lenght = number of models
+                          weights= NULL, # vector, length = number of models
                           cfyear=NULL, # numeric
                           transform = TRUE, # weibull transform
                           segment=NULL, # string representing period, valid values 1950, 1950-1969, 1970-1989, 1990
@@ -112,7 +139,6 @@ estimate_shift = function(models=NULL, # list
         # print(paste('segment: ', segment))
         # print(paste('igyear: ', igyear))
         # print(unlist(model_pred))
-
 
         if (!igyear %in% as.vector(unlist(model_pred))) { stop('Segment (period) is not valid!') }
 
@@ -185,7 +211,7 @@ estimate_shift = function(models=NULL, # list
 
 #                     'prediction' = as.vector(as.matrix(setDT(predictions)) %*% weights),
 #                     'counterfactual' = as.vector(as.matrix(setDT(cfs)) %*% weights)))
-}
+    }
     if (length(output)==1) {
         return(output[[1]])
     }
@@ -220,7 +246,7 @@ compute_shifts = function(models = NULL, # list of models
     # list to save results
     results = list()
 
-    for (c in countries ) {
+    for (c in countries) {
 
         iyears = as.numeric(unique(data[ctry==c & year %in% years, year]))
         segments = as.character(unique(data[ctry==c, gyear]))
@@ -282,39 +308,39 @@ extract.brms = function(model, include.r2 = TRUE, include.loo = FALSE, ...) {
 
   }
 
-  gof <- numeric()
-  gof.names <- character()
-  gof.decimal <- logical()
+  gof = numeric()
+  gof.names = character()
+  gof.decimal = logical()
 
   gof = c(gof, s$nobs)
-  gof.names <- c(gof.names, "Num.\ obs.")
-  gof.decimal <- c(gof.decimal, FALSE)
+  gof.names = c(gof.names, "Num.\ obs.")
+  gof.decimal = c(gof.decimal, FALSE)
 
   if ('ngrps' %in% names(s)) {
     for (i in seq_along(s$ngrps)) {
           gof = c(gof, s$ngrps[[i]])
-          gof.names <- c(gof.names, paste('Num.\ obs. ',
+          gof.names = c(gof.names, paste('Num.\ obs. ',
             stringr::str_replace_all(names(s$ngrps[i]), stringr::fixed('_'), '\\_')))
-          gof.decimal <- c(gof.decimal, FALSE)
+          gof.decimal = c(gof.decimal, FALSE)
     }
   }
 
   if (include.loo == TRUE) {
     loo = loo::loo(model, reloo=TRUE)
-    gof <- c(gof, loo$estimates[3,1])
-    gof.names <- c(gof.names, "LOO Information Criterion")
-    gof.decimal <- c(gof.decimal, FALSE)
+    gof = c(gof, loo$estimates[3,1])
+    gof.names = c(gof.names, "LOO Information Criterion")
+    gof.decimal = c(gof.decimal, FALSE)
   }
 
   if (include.r2 == TRUE) {
     r2 = bayes_R2(model)
-    gof <- c(gof, round(r2[1, 1], 2))
-    gof.names <- c(gof.names, "Bayes $R^2$")
-    gof.decimal <- c(gof.decimal, TRUE)
+    gof = c(gof, round(r2[1, 1], 2))
+    gof.names = c(gof.names, "Bayes $R^2$")
+    gof.decimal = c(gof.decimal, TRUE)
   }
 
 
-  tr <- createTexreg(
+  tr = createTexreg(
       coef.names = coefficient.names,
       coef = coefficients,
       se = standard.errors,
@@ -327,3 +353,31 @@ extract.brms = function(model, include.r2 = TRUE, include.loo = FALSE, ...) {
 
 setMethod("extract", signature = className("brmsfit", "brms"),
     definition = extract.brms)
+
+
+prediction_checks_ex = function(model, data, countries, variables, y, x) {
+
+    pred = cbind(data[, ..variables], predict(model))
+    setnames(pred, c('Estimate', 'Q2.5', 'Q97.5'), c('m', 'lo', 'hi'))
+
+    max_ex = max(data[, y, with = FALSE])+25.0
+    min_ex = min(data[, y, with = FALSE])-25.0
+    max_year = max(data[, x, with = FALSE])
+    min_year = min(data[, x, with = FALSE])
+
+    plots = list()
+    for (c in seq_along(countries)) {
+        plots[[c]] = ggplot(pred[ctry == countries[c]], aes_string(x=x, y=y))+
+            geom_line(aes(y = m), color='#2b8cbe', size = 0.4)  +
+            geom_ribbon(aes(ymin = lo, ymax = hi), fill = '#a6bddb', alpha=0.2)  +
+            geom_point(size=0.3, color='#e34a33', alpha=0.4) +
+            labs(title = countries[c]) +
+            ylim(min_ex, max_ex) +
+            xlim(min_year, max_year) +
+            theme_minimal() +
+            geom_vline(xintercept = 1950, size=0.5, color='red', alpha=0.8, linetype = 'dotted') +
+            geom_vline(xintercept = 1970, size=0.5, color='red', alpha=0.8, linetype = 'dotted') +
+            geom_vline(xintercept = 1990, size=0.5, color='red', alpha=0.8, linetype = 'dotted')
+    }
+    return(plots)
+}

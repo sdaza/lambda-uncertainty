@@ -56,16 +56,16 @@ df = df[year >= 1900]
 # uniform probability
 df[, upr := 1 / .N, .(ctry, year)]
 # expert probability```
-df[, spr := pr / sum(pr), by=.(ctry, year)]
-df[, N := .N, .(ctry, year)]
+# df[, spr := pr / sum(pr), by=.(ctry, year)]
+# df[, N := .N, .(ctry, year)]
 
-uniform_samples = df[,.SD[ sample(.N, sample_size, replace = TRUE, prob=upr)], by = .(ctry, year)]
-uniform_samples[, sample_index := 1:.N, by=.(ctry, year)]
-dim(uniform_samples)
+# uniform_samples = df[,.SD[ sample(.N, sample_size, replace = TRUE, prob=upr)], by = .(ctry, year)]
+# uniform_samples[, sample_index := 1:.N, by=.(ctry, year)]
+# dim(uniform_samples)
 
-samples = df[,.SD[ sample(.N, sample_size, replace = TRUE, prob = spr)], .(ctry,year)]
-samples[, sample_index := 1:.N, by=.(ctry, year)]
+# samples = df[,.SD[ sample(.N, sample_size, replace = TRUE, prob = spr)], .(ctry,year)]
+# samples[, sample_index := 1:.N, by=.(ctry, year)]
 
-# save files
-fwrite(samples, '../data/bs_samples_no_uniform.csv', row.names=FALSE)
-fwrite(uniform_samples, '../data/bs_samples_uniform.csv', row.names=FALSE)
+# # save files
+# fwrite(samples, '../data/bs_samples_no_uniform.csv', row.names=FALSE)
+# fwrite(uniform_samples, '../data/bs_samples_uniform.csv', row.names=FALSE)

@@ -312,7 +312,7 @@ m4 = brm(ex_mean ~ log_gdp + zyear + (zyear + log_gdp|ctry),
     seed = 483892929,
     refresh = 11000, 
     cores = 10, 
-    control = list(adapt_delta = 0.80)
+    control = list(adapt_delta = 0.95, max_treedepth = 15)
 )
 
 summary(m4)
@@ -324,14 +324,40 @@ loo_list = list()
 for (i in seq_along(baseline_models)) {
     loo_list[[i]] = loo(baseline_models[[i]], reloo=TRUE)
 }
+
 model_weights = as.vector(loo_model_weights(loo_list))
-model_weights
+round(model_weights, 3)
 
 # predictive checks
 
 # create table
 
 screenreg(baseline_models)
+
+cnames = paste0("Model ", 1:4,  " (", round(model_weights, 4), ")")
+custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", "zyear" = "Year (standardized)")
+
+texreg(baseline_models,
+    caption = "Models for LE and log GPD (no measurement error)", 
+    custom.model.names = cnames, 
+    custom.coef.map = custom_coeff_map,
+    label = "tab:ex_no_error",
+    center = TRUE,
+    dcolumn = TRUE, 
+    use.packages = FALSE, 
+    threeparttable = TRUE, 
+    caption.above = TRUE, 
+    file = "manuscript/tables/models_no_error.tex"
+)
+
+# checking fit
+ctrys = unique(sdat$ctry)
+vars = c("ctry", "year", "log_gdp", "ex_mean")
+plots_checks = prediction_checks_ex(m2, sdat, ctrys, vars, y = "ex_mean", x = "year")
+
+savepdf("manuscript/figures/fit_no_error_m2")
+print(plots_checks)
+dev.off()
 
 # error models 
 e1 = brm(ex_mean | mi(ex_sd) ~ log_gdp + (1|ctryear),
@@ -373,15 +399,15 @@ e3 = brm(ex_mean | mi(ex_sd) ~  log_gdp + zyear + (1|ctry),
 
 summary(e3)
 
-e4 = brm(ex_mean | mi(ex_sd)  ~ log_gdp + zyear + (log_gdp|ctry),
-    family = gaussian, data = idat,
+e4 = brm(ex_mean | mi(ex_sd)  ~ log_gdp + zyear + (zyear + log_gdp|ctry),
+    family = gaussian, data = idat,0
     iter = 11000, 
     warmup = 1000, 
     chains = 10, 
     seed = 483892929,
     refresh = 11000, 
     cores = 10, 
-    control = list(adapt_delta = 0.80)
+    control = list(adapt_delta = 0.95, max_treedepth = 15)
 )
 
 summary(e4)

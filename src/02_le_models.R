@@ -157,7 +157,7 @@ savepdf("manuscript/figures/mice")
     densityplot(imps, ~ zpop)
 dev.off()
 
-idat = data.table(complete(imps, action = 5))
+idat = data.table(complete(imps, action = 1))
 countries = unique(sdat[gdp_missing == "missing", ctry])
 savepdf("manuscript/figures/imputation_check_gdp")
 for (i in countries) {
@@ -169,7 +169,7 @@ for (i in countries) {
 dev.off()
 
 countries = unique(sdat[sd_missing == "missing", ctry])
-savepdf("output/plots/imputation_check_sd")
+savepdf("manuscript/figures/imputation_check_sd")
 for (i in countries) {
     print(ggplot(data = idat[ctry == i, .(ex_sd, year, sd_missing)],
         aes(year, ex_sd, color = sd_missing)) +
@@ -180,7 +180,7 @@ dev.off()
 
 cor(idat[, .(ex_mean, wy_mean, log_gdp, ex_sd, wy_sd, N)])
 
-savepdf("output/plots/gdp_sd")
+savepdf("manuscript/figures/gdp_sd")
     ggplot(idat, aes(log_gdp, wy_sd)) + geom_point() + theme_minimal()
     ggplot(idat, aes(log_gdp, ex_sd)) + geom_point() + theme_minimal()
 dev.off()
@@ -218,16 +218,16 @@ imps = mice(sadat,
     predictorMatrix = pred)
 
 # create imputation plots
-savepdf("output/plots/mice_decade")
+savepdf("manuscript/figures/mice_decade")
     plot(imps)
     densityplot(imps, ~ ex_sd)
     densityplot(imps, ~ log_gdp)
 dev.off()
 
-iadat = data.table(complete(imps, action = 5))
+iadat = data.table(complete(imps, action = 1))
 countries = unique(sadat[gdp_missing == "missing", ctry])
 
-savepdf("output/plots/imputation_check_gdp_decade")
+savepdf("manuscript/figures/imputation_check_gdp_decade")
 for (i in countries) {
     print(ggplot(data = iadat[ctry == i, .(log_gdp, year, gdp_missing)],
         aes(year, log_gdp, color = gdp_missing)) +
@@ -237,7 +237,7 @@ for (i in countries) {
 dev.off()
 
 countries = unique(sadat[sd_missing == "missing", ctry])
-savepdf("output/plots/imputation_check_sd_decade")
+savepdf("manuscript/figures/imputation_check_sd_decade")
 for (i in countries) {
     print(ggplot(data = iadat[ctry == i, .(ex_sd, year, sd_missing)],
         aes(year, ex_sd, color = sd_missing)) +
@@ -248,7 +248,7 @@ dev.off()
 
 cor(iadat[, .(ex_mean, wy_mean, log_gdp, ex_sd, wy_sd, N)])
 
-savepdf("output/plots/gdp_sd_decade")
+savepdf("manuscript/figures/gdp_sd_decade")
     ggplot(iadat, aes(log_gdp, wy_sd)) + geom_point() + theme_minimal()
     ggplot(iadat, aes(log_gdp, ex_sd)) + geom_point() + theme_minimal()
 dev.off()
@@ -256,7 +256,7 @@ dev.off()
 # models using year data
 m1 = brm(ex_mean ~ log_gdp + (1|ctryear),
     family = gaussian, data = idat,
-    iter = 11000, 
+    iter = 15000, 
     warmup = 1000, 
     chains = 10, 
     seed = 483892929,
@@ -269,7 +269,7 @@ summary(m1)
 
 m2 = brm(ex_mean ~ log_gdp + (log_gdp|ctryear),
     family = gaussian, data = idat,
-    iter = 11000, 
+    iter = 15000, 
     warmup = 1000, 
     chains = 10, 
     seed = 483892929,
@@ -282,7 +282,7 @@ summary(m2)
 
 m3 = brm(ex_mean ~ log_gdp + zyear + (zyear|ctry),
     family = gaussian, data = idat,
-    iter = 11000, 
+    iter = 15000, 
     warmup = 1000, 
     chains = 10, 
     seed = 483892929,
@@ -295,7 +295,7 @@ summary(m3)
 
 m4 = brm(ex_mean ~ log_gdp + zyear + (log_gdp|ctry),
     family = gaussian, data = idat,
-    iter = 11000, 
+    iter = 15000, 
     warmup = 1000, 
     chains = 10, 
     seed = 483892929,
@@ -422,7 +422,6 @@ est_shifts = compute_shifts(models = list(m1),
                         obs_var = 'ex_mean',
                         transform = FALSE,
                         posterior_nsample = 100,
-                        co
                         years = c(1950, 1970, 1990))
 
 p1 = posterior_samples(m1, pars = "gdp")

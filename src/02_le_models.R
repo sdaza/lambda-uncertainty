@@ -126,8 +126,8 @@ pred[,] = 0
 imp$loggedEvents
 
 meth["zpop"] = "2l.pmm"
-meth["log_gdp"] = "2l.pmm"
-meth["ex_sd"] = "2l.pmm"
+meth["log_gdp"] = "2l.norm"
+meth["ex_sd"] = "2l.norm"
 
 pred["zpop", c("zyear", "log_gdp", "ex_mean")] = 1
 pred["zpop", c("ctryearg")] = -2
@@ -142,10 +142,15 @@ pred["log_gdp", c("ctryearg")] = -2
 
 pred["log_gdp", ]
 
+# negative sd values
+post = imp$post
+post["ex_sd"] = "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(0.001, 15.1293))"
+
 # five datasets and 10 iterations
 imps = mice(sdat,
     m = 5,
     method = meth,
+    post = post,
     maxit = 10,
     predictorMatrix = pred)
 
@@ -157,13 +162,13 @@ savepdf("manuscript/figures/mice")
     densityplot(imps, ~ zpop)
 dev.off()
 
-idat = data.table(complete(imps, action = 1))
+idat = data.table(complete(imps, action = 2))
 countries = unique(sdat[gdp_missing == "missing", ctry])
 savepdf("manuscript/figures/imputation_check_gdp")
 for (i in countries) {
     print(ggplot(data = idat[ctry == i, .(log_gdp, year, gdp_missing)],
         aes(year, log_gdp, color = gdp_missing)) +
-        geom_point() + labs(title = i))
+        geom_point() + labs(title = i, x = "Year", y = "Log GDP", color = NULL)) 
 
 }
 dev.off()
@@ -173,16 +178,18 @@ savepdf("manuscript/figures/imputation_check_sd")
 for (i in countries) {
     print(ggplot(data = idat[ctry == i, .(ex_sd, year, sd_missing)],
         aes(year, ex_sd, color = sd_missing)) +
-        geom_point() + labs(title = i))
+        geom_point() + labs(title = i, x = "Year", y = "SD life expectancty", color = NULL))
 
 }
 dev.off()
 
-cor(idat[, .(ex_mean, wy_mean, log_gdp, ex_sd, wy_sd, N)])
+table(idat$sd_missing)
+cor(idat[, .(ex_mean, log_gdp, ex_sd, N)])
+cor(idat[sd_missing != "missing", .(ex_mean, log_gdp, ex_sd, N)])
 
-savepdf("manuscript/figures/gdp_sd")
-    ggplot(idat, aes(log_gdp, wy_sd)) + geom_point() + theme_minimal()
-    ggplot(idat, aes(log_gdp, ex_sd)) + geom_point() + theme_minimal()
+savepdf("manuscript/figures/gdp_sd")    
+    ggplot(idat, aes(log_gdp, ex_sd, color = sd_missing)) + geom_point() + theme_minimal() + 
+    labs(x = "Log GDP", y = "SD life expectancy", color = NULL)
 dev.off()
 
 # imputation using decade data
@@ -246,15 +253,19 @@ for (i in countries) {
 }
 dev.off()
 
-cor(iadat[, .(ex_mean, wy_mean, log_gdp, ex_sd, wy_sd, N)])
+table(iadat$sd_missing)
+cor(iadat[, .(ex_mean, log_gdp, ex_sd, N)])
+cor(iadat[sd_missing != "missing", .(ex_mean, log_gdp, ex_sd, N)])
 
-savepdf("manuscript/figures/gdp_sd_decade")
-    ggplot(iadat, aes(log_gdp, wy_sd)) + geom_point() + theme_minimal()
-    ggplot(iadat, aes(log_gdp, ex_sd)) + geom_point() + theme_minimal()
+savepdf("manuscript/figures/gdp_sd_decade")    
+    ggplot(iadat, aes(log_gdp, ex_sd, color = sd_missing)) + geom_point() + theme_minimal()
 dev.off()
 
-# models using year data
-m1 = brm(ex_mean ~ log_gdp + (1|ctryear),
+
+# models
+
+# using year data
+m1 = brm(ex_mean ~ log_gdp + (1 | ctryear),
     family = gaussian, data = idat,
     iter = 15000, 
     warmup = 1000, 
@@ -267,7 +278,7 @@ m1 = brm(ex_mean ~ log_gdp + (1|ctryear),
 
 summary(m1)
 
-m2 = brm(ex_mean ~ log_gdp + (log_gdp|ctryear),
+m2 = brm(ex_mean ~ log_gdp + (log_gdp | ctryear),
     family = gaussian, data = idat,
     iter = 15000, 
     warmup = 1000, 
@@ -293,7 +304,7 @@ m3 = brm(ex_mean ~ log_gdp + zyear + (zyear|ctry),
 
 summary(m3)
 
-m4 = brm(ex_mean ~ log_gdp + zyear + (log_gdp|ctry),
+m4 = brm(ex_mean ~ log_gdp + zyear + (zyear + log_gdp|ctry),
     family = gaussian, data = idat,
     iter = 15000, 
     warmup = 1000, 
@@ -307,6 +318,19 @@ m4 = brm(ex_mean ~ log_gdp + zyear + (log_gdp|ctry),
 summary(m4)
 
 baseline_models = list(m1, m2, m3, m4)
+
+loo_list = list()
+
+for (i in seq_along(baseline_models)) {
+    loo_list[[i]] = loo(baseline_models[[i]], reloo=TRUE)
+}
+model_weights = as.vector(loo_model_weights(loo_list))
+model_weights
+
+# predictive checks
+
+# create table
+
 screenreg(baseline_models)
 
 # error models 
@@ -363,12 +387,6 @@ e4 = brm(ex_mean | mi(ex_sd)  ~ log_gdp + zyear + (log_gdp|ctry),
 summary(e4)
 
 # decade
-
-
-
-
-
-
 
 m2 = brm(ex_mean | mi(ex_sd) ~ log_gdp + (1|ctryear),
     family = gaussian, data = idat,

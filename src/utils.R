@@ -5,8 +5,16 @@
 
 
 # get original values from weibull transformation
-get_orig_values_weibull = function(x, max_value) {
-    return ( (1 - exp(-exp(x))) * max_value )
+transWeibull = function(x, maxvalue = 100) {
+    y = x / (maxvalue + 1.05)
+    y = log( -log(1-y))
+    return(y)
+}
+
+
+recoverWeibull = function(x, maxvalue = 100) {
+    y = (1 - exp(-exp(x))) * (maxvalue + 1.05)
+    return(y)
 }
 
 
@@ -103,6 +111,24 @@ savepdf = function(file, width = 16, height = 10, mgp = c(2.2,0.45,0),
     pdf(fname, width=width / 2.54, height = height / 2.54,
         pointsize = 10)
     par(mgp = mgp, tcl = tcl, mar = mar)
+}
+
+
+# create data for comparison (predictive values)
+createComparisonData = function(data, countries, years, cyears, dyears) {
+    datalist = list()
+    for (i in seq_along(countries)) {
+        for (h in seq_along(cyears)) {
+            values = paste0(countries[i], ".", cyears[[h]])
+            if (sum(values %in% unique(idat$ctryear)) < 2 ) next 
+            a = data[ctry == countries[i] & year == years[h] & gyear == cyears[[h]][2]]
+            b = copy(a)
+            b[, ctryear := paste0(countries[i], ".", cyears[[h]][1])]
+            b[, ctry50 := paste0(countries[i], ".", dyears[[h]][1])]
+            datalist[[paste0(i, ".", h)]] = rbind(a, b)
+        }
+    }
+    return(rbindlist(datalist, idcol = "comp"))
 }
 
 
@@ -284,84 +310,22 @@ compute_shifts = function(models = NULL, # list of models
 
 }
 
+prediction_checks_ex = function(model, data, countries, variables, y, x, maxy = 2, transform = FALSE) {
 
-# texreg function for brms
-extract.brms = function(model, include.r2 = TRUE, include.loo = FALSE, ...) {
+    variables = unique(c(variables, y, x))
+    posterior = data.table(predict(model))
+    if (transform) {
+        vars = c('Estimate', 'Q2.5', 'Q97.5')
+        posterior[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
 
-  s = summary(model)
-
-  # fixed
-  coefficient.names = names(s$fixed[,1])
-  coefficients = s$fixed[,1]
-  standard.errors = s$fixed[, 2]
-
-  # random
-  if ('random' %in% names(s)) {
-   r = s$random[[1]]
-   random.names = stringr::str_replace_all(rownames(r), stringr::fixed('\\_'), "\\_")
-   random.estimates = r[,1]
-   random.se = r[,2]
-
-   coefficient.names = c(coefficient.names, random.names)
-   coefficients = c(coefficients, random.estimates)
-   standard.errors = c(standard.errors, random.se)
-
-  }
-
-  gof = numeric()
-  gof.names = character()
-  gof.decimal = logical()
-
-  gof = c(gof, s$nobs)
-  gof.names = c(gof.names, "Num.\ obs.")
-  gof.decimal = c(gof.decimal, FALSE)
-
-  if ('ngrps' %in% names(s)) {
-    for (i in seq_along(s$ngrps)) {
-          gof = c(gof, s$ngrps[[i]])
-          gof.names = c(gof.names, paste('Num.\ obs. ',
-            stringr::str_replace_all(names(s$ngrps[i]), stringr::fixed('_'), '\\_')))
-          gof.decimal = c(gof.decimal, FALSE)
     }
-  }
+    pred = data.table(cbind(data[, ..variables], posterior))
 
-  if (include.loo == TRUE) {
-    loo = loo::loo(model, reloo=TRUE)
-    gof = c(gof, loo$estimates[3,1])
-    gof.names = c(gof.names, "LOO Information Criterion")
-    gof.decimal = c(gof.decimal, FALSE)
-  }
-
-  if (include.r2 == TRUE) {
-    r2 = bayes_R2(model)
-    gof = c(gof, round(r2[1, 1], 2))
-    gof.names = c(gof.names, "Bayes $R^2$")
-    gof.decimal = c(gof.decimal, TRUE)
-  }
-
-
-  tr = createTexreg(
-      coef.names = coefficient.names,
-      coef = coefficients,
-      se = standard.errors,
-      gof.names = gof.names,
-      gof = gof,
-      gof.decimal = gof.decimal
-  )
-  return(tr)
-}
-
-setMethod("extract", signature = className("brmsfit", "brms"),
-    definition = extract.brms)
-
-
-prediction_checks_ex = function(model, data, countries, variables, y, x) {
-
-    pred = cbind(data[, ..variables], predict(model))
     setnames(pred, c('Estimate', 'Q2.5', 'Q97.5'), c('m', 'lo', 'hi'))
 
-    max_ex = max(data[, y, with = FALSE])+25.0
-    min_ex = min(data[, y, with = FALSE])-25.0
+    wsd = sd(data[[y]])
+    max_ex = max(data[, y, with = FALSE]) + maxy * wsd
+    min_ex = min(data[, y, with = FALSE]) - maxy * wsd
     max_year = max(data[, x, with = FALSE])
     min_year = min(data[, x, with = FALSE])
 
@@ -381,3 +345,122 @@ prediction_checks_ex = function(model, data, countries, variables, y, x) {
     }
     return(plots)
 }
+
+
+prediction_checks_pp_ex = function(posterior, data, countries, variables, y, x, maxy = 2, transform = FALSE) {
+
+    posterior = data.table(posterior)
+    if (transform) {
+        vars = c('Estimate', 'Q2.5', 'Q97.5')
+        posterior[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
+
+    }
+    variables = unique(c(variables, y, x))
+    pred = cbind(data[, ..variables], posterior)
+    setnames(pred, c('Estimate', 'Q2.5', 'Q97.5'), c('m', 'lo', 'hi'))
+
+    wsd = sd(data[[y]])
+    max_ex = max(data[, y, with = FALSE]) + maxy * wsd
+    min_ex = min(data[, y, with = FALSE]) - maxy * wsd
+    max_year = max(data[, x, with = FALSE])
+    min_year = min(data[, x, with = FALSE])
+
+    plots = list()
+    for (c in seq_along(countries)) {
+        plots[[c]] = ggplot(pred[ctry == countries[c]], aes_string(x=x, y=y))+
+            geom_line(aes(y = m), color='#2b8cbe', size = 0.4)  +
+            geom_ribbon(aes(ymin = lo, ymax = hi), fill = '#a6bddb', alpha=0.2)  +
+            geom_point(size=0.3, color='#e34a33', alpha=0.4) +
+            labs(title = countries[c]) +
+            ylim(min_ex, max_ex) +
+            xlim(min_year, max_year) +
+            theme_minimal() +
+            geom_vline(xintercept = 1950, size=0.5, color='red', alpha=0.8, linetype = 'dotted') +
+            geom_vline(xintercept = 1970, size=0.5, color='red', alpha=0.8, linetype = 'dotted') +
+            geom_vline(xintercept = 1990, size=0.5, color='red', alpha=0.8, linetype = 'dotted')
+    }
+    return(plots)
+}
+
+
+
+extract.brmsfit <- function (model,
+                             use.HDI = TRUE,
+                             level = 0.9,
+                             include.random = TRUE,
+                             include.rsquared = TRUE,
+                             include.nobs = TRUE,
+                             include.loo.ic = TRUE,
+                             reloo = FALSE,
+                             include.waic = TRUE,
+                             ...) {
+  sf <- summary(model, ...)$fixed
+  coefnames <- rownames(sf)
+  coefs <- sf[, 1]
+  se <- sf[, 2]
+  if (isTRUE(use.HDI)) {
+    hdis <- coda::HPDinterval(brms::as.mcmc(model, combine_chains = TRUE),
+                              prob = level)
+    hdis <- hdis[seq(1:length(coefnames)), ]
+    ci.low = hdis[, "lower"]
+    ci.up = hdis[, "upper"]
+  } else { # default using 95% posterior quantiles from summary.brmsfit
+    ci.low = sf[, 3]
+    ci.up = sf[, 4]
+  }
+
+  gof <- numeric()
+  gof.names <- character()
+  gof.decimal <- logical()
+  if (isTRUE(include.random) & isFALSE(!nrow(model$ranef))) {
+    sr <- summary(model, ...)$random
+    sd.names <- character()
+    sd.values <- numeric()
+    for (i in 1:length(sr)) {
+      sd <- sr[[i]][, 1]
+      sd.names <- c(sd.names, paste0("SD: ", names(sr)[[i]], names(sd)))
+      sd.values <- c(sd.values, sd)
+    }
+    gof <- c(gof, sd.values)
+    gof.names <- c(gof.names, sd.names)
+    gof.decimal <- c(gof.decimal, rep(TRUE, length(sd.values)))
+  }
+  if (isTRUE(include.rsquared)) {
+    rs <- brms::bayes_R2(model)[1]
+    gof <- c(gof, rs)
+    gof.names <- c(gof.names, "R$^2$")
+    gof.decimal <- c(gof.decimal, TRUE)
+  }
+  if (isTRUE(include.nobs)) {
+    n <- stats::nobs(model)
+    gof <- c(gof, n)
+    gof.names <- c(gof.names, "Num. obs.")
+    gof.decimal <- c(gof.decimal, FALSE)
+  }
+  if (isTRUE(include.loo.ic)) {
+    looic <- brms::loo(model, reloo = reloo)$estimates["looic", "Estimate"]
+    gof <- c(gof, looic)
+    gof.names <- c(gof.names, "loo IC")
+    gof.decimal <- c(gof.decimal, TRUE)
+  }
+  if (isTRUE(include.waic)) {
+    waic <- brms::waic(model)$estimates["waic", "Estimate"]
+    gof <- c(gof, waic)
+    gof.names <- c(gof.names, "WAIC")
+    gof.decimal <- c(gof.decimal, TRUE)
+  }
+
+  tr <- createTexreg(coef.names = coefnames,
+                     coef = coefs,
+                     se = se,
+                     ci.low = ci.low,
+                     ci.up = ci.up,
+                     gof.names = gof.names,
+                     gof = gof,
+                     gof.decimal = gof.decimal)
+  return(tr)
+}
+
+setMethod("extract",
+          signature = className("brmsfit_multiple", "brms"),
+          definition = extract.brmsfit)

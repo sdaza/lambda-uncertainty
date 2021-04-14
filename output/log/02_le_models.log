@@ -1,0 +1,155 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+* Project '~/00projects/git/lambda-uncertainty' loaded. [renv 0.10.0]
+> ############################
+> # life expectancy models
+> # author: sebastian daza
+> ############################
+> 
+> # R < /home/s/sdaza/00projects/lambda/src/le_models.R > /home/s/sdaza/00projects/lambda/output/le_models.log  --no-save  &
+> # R < src/02_le_models.R > output/log/02_le_models.log  --no-save  &
+> 
+> 
+> # libraries, functions and options
+> library(haven)
+> library(data.table)
+> library(stringr)
+> library(brms)
+> library(loo)
+> library(future)
+> plan("multicore")
+> 
+> library(texreg)
+> library(mice)
+> library(miceadds)
+> 
+> library(ggplot2)
+> library(patchwork)
+> source("src/utils.R")
+> 
+> # options(mc.cores = 30, scipen=999)
+> options(mc.cores = 20)
+> seed = 19380302
+> set.seed(seed)
+> 
+> estimate_models = TRUE
+> 
+> # read data
+> sdat = readRDS("output/data/aggregate-data.rds")
+> timps = readRDS("output/data/imputations.rds")
+> 
+> # # testing imputation 
+> # i1 = data.table(complete(timps, action = 1))
+> # i9 = data.table(complete(timps, action = 9))
+> # table(i1$ex_mean == i9$ex_mean)
+> # table(i1$log_gdp == i9$log_gdp)
+> 
+> # explore errors in prediction
+> nsamples = 10
+> # idat = data.table(complete(timps, action = sample(1:nsamples, 1)))
+> # idat[, cex_mean := scale(ex_mean, scale = FALSE)]
+> 
+> # savepdf("output/plots/test1")
+> #     plot(test$zyear, test$ex_mean)
+> #     ggplot(test, aes(year, log_gdp, color = as.factor(gdp_missing))) + geom_point()
+> # dev.off()
+> 
+> # models
+> 
+> if (estimate_models) {
++ 
++     m1 = brm_multiple(wy_mean ~ log_gdp + (1 | ctryear),
++         family = gaussian, data = timps,
++         iter = 15000, 
++         warmup = 1000, 
++         chains = 10, 
++         seed = seed,
++         refresh = 11000, 
++         cores = 10, 
++         control = list(max_treedepth = 15)
++     )
++ 
++     summary(m1)
++ 
++     m2 = brm_multiple(wy_mean ~ log_gdp + (log_gdp | ctryear),
++         family = gaussian, data = timps,
++         iter = 15000, 
++         warmup = 1000, 
++         chains = 5, 
++         seed = seed,
++         refresh = 11000, 
++         cores = 5, 
++         control = list(max_treedepth = 15)
++     )
++ 
++     summary(m2)
++ 
++     m3 = brm_multiple(wy_mean ~ log_gdp + zyear + (zyear | ctry),
++         family = gaussian, data = timps,
++         iter = 15000, 
++         warmup = 1000, 
++         chains = 5, 
++         seed = seed,
++         refresh = 11000, 
++         cores = 10, 
++         control = list(max_treedepth = 15)
++     )
++ 
++     m4 = brm_multiple(wy_mean ~ log_gdp + zyear + (zyear | ctryear),
++         family = gaussian, data = timps,
++         iter = 15000, 
++         warmup = 1000, 
++         chains = 5, 
++         seed = seed,
++         refresh = 11000, 
++         cores = 5, 
++         control = list(max_treedepth = 15)
++     )
++ 
++     m5 = brm_multiple(wy_mean ~ log_gdp + zyear + (zyear + log_gdp|ctry),
++         family = gaussian, data = timps,
++         iter = 15000, 
++         warmup = 1000, 
++         chains = 10, 
++         seed = seed,
++         refresh = 11000, 
++         cores = 10, 
++         control = list(max_treedepth = 15)
++     )
++ 
++     m6 = brm_multiple(wy_mean ~ log_gdp + zyear + (zyear + log_gdp|ctryear),
++         family = gaussian, data = timps,
++         iter = 15000, 
++         warmup = 1000, 
++         chains = 10, 
++         seed = seed,
++         refresh = 11000, 
++         cores = 10, 
++         control = list(max_treedepth = 15)
++     )
++ 
++     t1 = loo(m2, reloo = TRUE)
++ 
++     summary(m4)
++ 
++     baseline_models = list(m1, m2, m3, m4, m5, m6)
++     saveRDS(baseline_models, file = "output/models/baseline_models.rds")
++ 
++ } else { baseline_models = readRDS("output/models/baseline_models.rds") }

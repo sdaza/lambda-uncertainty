@@ -1,4 +1,4 @@
-############################
+
 # life expectancy error models
 # author: sebastian daza
 ############################
@@ -13,6 +13,7 @@ library(stringr)
 library(brms) 
 library(loo)
 library(future)
+library(slackr)
 
 plan(multicore)
 
@@ -144,5 +145,5 @@ file.copy("output/plots/fit_error_m2.pdf", "manuscript/plots/", recursive = TRUE
 
 # send message to slack
 slackr::slackr_setup(config_file = ".slackr")
-slackr::slackr_msg(txt = paste0("LE models no error: ", Sys.time()))
+slackr::slackr_msg(paste0("LE models no error: ", Sys.time()))
 

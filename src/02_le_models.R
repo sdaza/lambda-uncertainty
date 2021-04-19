@@ -14,7 +14,9 @@ library(stringr)
 library(brms)
 library(loo)
 library(future)
-plan("multicore")
+plan(multiprocess, workers = 15)
+options(future.globals.maxSize = 8000 * 1024^2)
+options(future.rng.onMisuse="ignore")
 
 library(texreg)
 library(ggplot2)
@@ -23,140 +25,103 @@ source("src/utils.R")
 
 # options(mc.cores = 30, scipen=999)
 # options(mc.cores = 10)
+slackr::slackr_setup(config_file = ".slackr")
 seed = 19380302
 set.seed(seed)
-
-estimate_models = TRUE
 
 # read data
 sdat = readRDS("output/data/aggregate-data.rds")
 idat = readRDS("output/data/single-imputation.rds")
 timps = readRDS("output/data/imputations.rds")
 nsamples = length(timps)
-
-idat[, ctry50 := paste0(ctry, ".", year1950)]
-idat[, xy_sd := transWeibull(ex_sd, max_ex)]
-
-head(idat)
+nimputations = 10
+timps = timps[1:nimputations]
+length(timps)
 
 # models 
-m1 = brm(wy_mean ~ log_gdp + (1 | ctry50), data = idat, 
-    iter = 15000, 
-    refresh = 11000, 
+m1 = brm_multiple(wy_mean ~ log_gdp + (1 | ctry50), data = timps, 
+    iter = 4000, 
     warmup = 1000, 
-    chains = 6, 
-    cores = 6, 
-    save_pars = save_pars(all = TRUE))
+    chains = 1, 
+    combine = FALSE)
 
-m2 = brm(wy_mean ~ log_gdp + (log_gdp | ctry50), data = idat, 
-    iter = 15000, 
-    refresh = 11000, 
+m2 = brm_multiple(wy_mean ~ log_gdp + (log_gdp | ctry50), data = timps, 
+    iter = 4000, 
     warmup = 1000, 
-    chains = 6, 
-    cores = 6, 
-    save_pars = save_pars(all = TRUE))
+    chains = 1, 
+    combine = FALSE)
 
-m3 = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctry50), data = idat, 
-    iter = 15000, 
-    refresh = 11000, 
+m3 = brm_multiple(wy_mean ~ log_gdp + zyear + (log_gdp | ctry50), data = timps, 
+    iter = 5000, 
     warmup = 1000, 
-    chains = 6, 
-    cores = 6, 
-    save_pars = save_pars(all = TRUE), 
-    control = list(max_treedepth = 15))
+    chains = 1, 
+    control = list(max_treedepth = 15), 
+    combine = FALSE)
 
-m4 = brm(wy_mean ~ log_gdp + (1 | ctryear), data = idat, 
-    iter = 20000, 
-    refresh = 11000, 
+m4 = brm_multiple(wy_mean ~ log_gdp + (1 | ctryear), data = timps, 
+    iter = 12000, 
     warmup = 1000, 
-    chains = 6, 
-    cores = 6, 
-    save_pars = save_pars(all = TRUE))
+    chains = 1, 
+    combine = FALSE)
 
-m5 = brm(wy_mean ~ log_gdp + (log_gdp | ctryear), data = idat, 
-    iter = 20000, 
-    refresh = 11000, 
+m5 = brm_multiple(wy_mean ~ log_gdp + (log_gdp | ctryear), data = timps, 
+    iter = 12000, 
     warmup = 1000, 
-    chains = 6, 
-    cores = 6, 
-    save_pars = save_pars(all = TRUE), 
-    control = list(max_treedepth = 15))
+    chains = 1, 
+    control = list(max_treedepth = 15), 
+    combine = FALSE)
 
-m6 = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctryear), data = idat, 
-    iter = 15000, 
-    refresh = 11000, 
+m6 = brm_multiple(wy_mean ~ log_gdp + zyear + (log_gdp | ctryear), data = timps, 
+    iter = 12000, 
     warmup = 1000, 
-    chains = 6, 
-    cores = 6, 
-    save_pars = save_pars(all = TRUE), 
-    control = list(max_treedepth = 15))
+    chains = 1,
+    control = list(max_treedepth = 15), 
+    combine = FALSE)
 
-model_list = list(m1, m2, m3, m4, m5, m6)
-loo_list =list()
-kfold_list = list()
-for (i in 1:6) {
-    # loo_list[[i]] = loo(model_list[[i]], cores = 6, moment_match = TRUE)
-    kfold_list[[i]] = kfold(model_list[[i]], K = 10, chains  = 1)
+# create datasets to contrast
+countries = unique(idat$ctry)
+years = c(1950)
+cyears = list(c("1950", "1950-1969"))
+dyears = list(c("1950", "1950+"))
+
+datasets = list()
+for (i in 1:nimputations) {
+    datasets[[i]] = createComparisonData(timps[[i]], countries, 
+    years, cyears, dyears)
 }
 
-# lpd_point = NULL
-lpd_kfold = NULL 
-for (i in c(1, 2, 3, 4, 5, 6)) {
-    # lpd_point = cbind(lpd_point, loo_list[[i]]$pointwise[, "elpd_loo"])
-    lpd_kfold = cbind(lpd_kfold, kfold_list[[i]]$pointwise[, "elpd_kfold"])
-}
+# countries with values before and after 1950
+countries = unique(datasets[[1]]$ctry)
+model_replicates = list(m1, m2, m3, m4, m5, m6)
+rm(m1, m2, m3, m4, m5, m6)
 
-# pbma_wts = pseudobma_weights(lpd_point, BB=FALSE)
-# pbma_BB_wts = pseudobma_weights(lpd_point)
-# stacking_wts = stacking_weights(lpd_point)
-# round(cbind(pbma_wts, pbma_BB_wts, stacking_wts), 2)
+# saveRDS(model_replicates, "output/models/model_replicates_error.rds")
+slackr::slackr_msg(txt = paste0("LE no error replicates: ", Sys.time()))
 
-pbma_wts = pseudobma_weights(lpd_kfold, BB=FALSE)
-pbma_BB_wts = pseudobma_weights(lpd_kfold)
-stacking_wts = stacking_weights(lpd_kfold)
-round(cbind(pbma_wts, pbma_BB_wts, stacking_wts), 2)
+# compute shifts
+shifts = createShifts(model_replicates, datasets, countries = countries, 
+    nsamples = 5000) 
+saveRDS(shifts, "output/models/shifts_no_error.rds")
 
-ppred = pp_average(m1, m2, m3, m4, m5, m6, weights = stacking_wts)
-
-savepdf("output/plots/pred_check_m3")
-    print(pp_check(m6))
-dev.off()
-
-ctrys = unique(idat$ctry)
-vars = c("ctryear", "ctry50", "ctry", "year", "zyear", "log_gdp", "ex_mean", "wy_mean")
-plots_checks = prediction_checks_pp_ex(ppred, idat, ctrys, vars, y = "ex_mean", x = "year", 
-    transform = TRUE)
-savepdf("output/plots/fit_no_error_pp")
-    print(plots_checks)
-dev.off()
-file.copy("output/plots/fit_no_error_pp.pdf", "manuscript/plots/", recursive = TRUE)    
-
-# preferred model 
-preferred_model = which.max(stacking_wts)
-plots_checks = prediction_checks_ex(model_list[[preferred_model]], idat, ctrys, vars, y = "ex_mean", x = "year", transform = TRUE)
-
-savepdf(paste0("output/plots/fit_no_error_m", preferred_model))
-    print(plots_checks)
-dev.off()
-file.copy(paste0("output/plots/fit_no_error_m", preferred_model, ".pdf"), "manuscript/plots/", recursive = TRUE)   
-
-# gpd
-savepdf("output/plots/imputation_check_gdp")
-for (i in countries) {
-    print(ggplot(data = idat[ctry == i, .(log_gdp, year, gdp_missing)],
-    aes(year, log_gdp, color = gdp_missing)) +
-    geom_point() + labs(title = i, x = "Year", y = "Log GDP", color = NULL))        
-}
-dev.off()
-file.copy("output/plots/imputation_check_gdp.pdf", "manuscript/plots", recursive = TRUE)
+cm1 = combine_models(mlist = model_replicates[[1]], check_data = FALSE)
+cm2 = combine_models(mlist = model_replicates[[2]], check_data = FALSE)
+cm3 = combine_models(mlist = model_replicates[[3]], check_data = FALSE)
+cm4 = combine_models(mlist = model_replicates[[4]], check_data = FALSE)
+cm5 = combine_models(mlist = model_replicates[[5]], check_data = FALSE)
+cm6 = combine_models(mlist = model_replicates[[6]], check_data = FALSE)
+model_list = list(cm1, cm2, cm3, cm4, cm5, cm6)
+rm(model_replicates, cm1, cm2, cm3, cm4, cm5, cm6)
+# saveRDS(model_list, "output/models/model_combined_no_error.rds")
 
 # table
 cnames = paste0("Model ", 1:length(model_list),  " (", round(stacking_wts, 2), ")")
-cnames
-custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", "zyear" = "Year (standardized)")
+custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", 
+    "zyear" = "Year (standardized)")
+caption = paste0("Models for LE and log GPD no measurement error, stacking weight in parenthesis, ", 
+    nimputations, " replicates")
 
-texreg(baseline_models,
-    caption = "Models for LE and log GPD no measurement error, stacking weight in parenthesis", 
+texreg(model_list,
+    caption = caption, 
     custom.model.names = cnames, 
     custom.coef.map = custom_coeff_map,
     label = "tab:ex_no_error",
@@ -175,37 +140,5 @@ texreg(baseline_models,
 )    
 file.copy("output/tables/models_no_error.tex", "manuscript/tables/", recursive = TRUE)    
 
-# shift 
-countries = unique(idat$ctry)
-years = c(1950)
-cyears = list(c("1950", "1950-1969"))
-dyears = list(c("1950", "1950+"))
-datatest = createComparisonData(idat, countries, years, cyears, dyears)
-
-shift = pp_average(m1, m2, m3, m4, m5, m6, weights = stacking_wts, newdata = datatest, summary = FALSE)
-shift = data.table(shift)
-
-savepdf("")
-vars = names(shift)
-shift[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
-datatest
-
-ctry = unique(datatest$ctry)
-
-savepdf("output/plots/shifts_no_error_pp")
-    index = c(1, 2)    
-    plots ()
-    for (i in seq_along(ctry)) {
-            out = data.table(est = shift[[paste0("V", index[1])]]  - shift[[paste0("V", index[2])]])
-            print(ggplot(out, aes(x = est)) +
-                geom_histogram(color = "black", fill = "white", binwidth = 0.5) + 
-                theme_minimal() + labs(x = "Estimated shift", y = "Frequency", title = ctry[i])
-            )
-            index = index + 2
-    }
-dev.off()
-file.copy("output/plots/shifts_no_error_pp.pdf", "manuscript/plots", recursive = TRUE)
-
 # send message to slack
-slackr::slackr_setup(config_file = ".slackr")
 slackr::slackr_msg(txt = paste0("LE models no error: ", Sys.time()))

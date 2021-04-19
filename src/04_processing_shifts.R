@@ -1,55 +1,49 @@
-ctrys = unique(idat$ctry)
-vars = c("ctryear", "ctry50", "ctry", "year", "zyear", "log_gdp", "ex_mean", "wy_mean")
+# create plots with shift under different scenarios
+# author: sebastian daza
 
 
-savepdf("output/plots/pred_check_m3")
-    print(pp_check(m6))
-dev.off()
+library(data.table)
+library(ggplot2)
+source("src/utils.R")
 
-plots_checks = prediction_checks_pp_ex(ppred, idat, ctrys, vars, y = "ex_mean", x = "year", 
-    transform = TRUE)
-savepdf("output/plots/fit_no_error_pp")
-    print(plots_checks)
-dev.off()
-file.copy("output/plots/fit_no_error_pp.pdf", "manuscript/plots/", recursive = TRUE)    
+shifte = readRDS("output/models/shifts_error.rds")[[1]][, error := "Bootstrap"]
+shiftne = readRDS("output/models/shifts_no_error.rds")[[1]][, error := "Mean"]
+shifts = rbind(shifte, shiftne)
+countries = na.omit(as.numeric(names(shifts)))
 
-# preferred model 
-preferred_model = which.max(stacking_wts)
-plots_checks = prediction_checks_ex(model_list[[preferred_model]], idat, ctrys, vars, y = "ex_mean", x = "year", transform = TRUE)
-
-savepdf(paste0("output/plots/fit_no_error_m", preferred_model))
-    print(plots_checks)
-dev.off()
-file.copy(paste0("output/plots/fit_no_error_m", preferred_model, ".pdf"), "manuscript/plots/", recursive = TRUE)   
-
-# gpd
-savepdf("output/plots/imputation_check_gdp")
-for (i in countries) {
-    print(ggplot(data = idat[ctry == i, .(log_gdp, year, gdp_missing)],
-    aes(year, log_gdp, color = gdp_missing)) +
-    geom_point() + labs(title = i, x = "Year", y = "Log GDP", color = NULL))        
-}
-dev.off()
-file.copy("output/plots/imputation_check_gdp.pdf", "manuscript/plots", recursive = TRUE)
-
-
-savepdf("")
-vars = names(shift)
-shift[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
-datatest
-
-ctry = unique(datatest$ctry)
-
-savepdf("output/plots/shifts_no_error_pp")
-    index = c(1, 2)    
-    plots ()
-    for (i in seq_along(ctry)) {
-            out = data.table(est = shift[[paste0("V", index[1])]]  - shift[[paste0("V", index[2])]])
-            print(ggplot(out, aes(x = est)) +
-                geom_histogram(color = "black", fill = "white", binwidth = 0.5) + 
-                theme_minimal() + labs(x = "Estimated shift", y = "Frequency", title = ctry[i])
+savepdf("output/plots/shifts_comparison")
+    for (i in seq_along(countries)) {
+            out = shifts[, c(as.character(countries[i]), "error"), with = FALSE]
+            setnames(out, as.character(countries[i]), "est")
+            print(ggplot(out, aes(x = est, color= error, fill = error)) +
+                geom_density(alpha = 0.2) + 
+                theme_minimal() + 
+                labs(x = "Estimated shift", y = "Density", 
+                    title = countries[i]) + 
+                theme(legend.position = "top") + 
+                theme(legend.title=element_blank()) + 
+                scale_color_manual(values=c("#2b8cbe", "#de2d26")) +
+                scale_fill_manual(values=c("#2b8cbe", "#de2d26"))
             )
-            index = index + 2
     }
 dev.off()
-file.copy("output/plots/shifts_no_error_pp.pdf", "manuscript/plots", recursive = TRUE)
+file.copy("output/plots/shifts_comparison.pdf", "manuscript/plots", recursive = TRUE)
+
+
+# fit checks plots 
+# todo: move them to le files
+# plots_checks = prediction_checks_pp_ex(ppred, idat, ctrys, vars, y = "ex_mean", x = "year", 
+#     transform = TRUE)
+# savepdf("output/plots/fit_no_error_pp")
+#     print(plots_checks)
+# dev.off()
+# file.copy("output/plots/fit_no_error_pp.pdf", "manuscript/plots/", recursive = TRUE)    
+
+# # preferred model 
+# preferred_model = which.max(stacking_wts)
+# plots_checks = prediction_checks_ex(model_list[[preferred_model]], idat, ctrys, vars, y = "ex_mean", x = "year", transform = TRUE)
+
+# savepdf(paste0("output/plots/fit_no_error_m", preferred_model))
+#     print(plots_checks)
+# dev.off()
+# file.copy(paste0("output/plots/fit_no_error_m", preferred_model, ".pdf"), "manuscript/plots/", recursive = TRUE)   

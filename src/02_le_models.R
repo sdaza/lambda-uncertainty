@@ -114,11 +114,11 @@ rm(model_replicates, cm1, cm2, cm3, cm4, cm5, cm6)
 # saveRDS(model_list, "output/models/model_combined_no_error.rds")
 
 # table
-cnames = paste0("Model ", 1:length(model_list),  " (", round(stacking_wts, 2), ")")
+cnames = paste0("Model ", 1:length(model_list),  " (", round(shifts[["avg_weights"]], 2), ")")
 custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", 
     "zyear" = "Year (standardized)")
 caption = paste0("Models for LE and log GPD no measurement error, stacking weight in parenthesis, ", 
-    nimputations, " replicates")
+    nimputations, " imputations")
 
 texreg(model_list,
     caption = caption, 
@@ -137,8 +137,9 @@ texreg(model_list,
     include.random = FALSE,
     reloo = FALSE,
     file = "output/tables/models_no_error.tex"
-)    
-file.copy("output/tables/models_no_error.tex", "manuscript/tables/", recursive = TRUE)    
+)  
+file.copy("output/tables/models_no_error.tex", "manuscript/tables/", 
+    recursive = TRUE)    
 
 # send message to slack
 slackr::slackr_msg(txt = paste0("LE models no error: ", Sys.time()))

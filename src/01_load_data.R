@@ -21,20 +21,34 @@ set.seed(seed)
 
 source("src/utils.R")
 
+# f (false) or t (true)
+select_estimates = "f"
+
+# paths
+plots_path = "output/plots/"
+tables_path = "output/tables/"
+data_path = "output/data/"
+manus_plots = "manuscript/plots"
+manus_tables  = "manuscript/tables"
+
 # year dataset
 dat = data.table(read_stata("data/Ex_LA1850-2020_SES_FULL_Mar2-2021.dta"))
 setnames(dat, names(dat), tolower(names(dat)))
 
 ctrylabs = attr(dat$ctry, "labels")
+lab_list = as.list(setNames(attr(ctrylabs, "names"), as.numeric(ctrylabs)))
 levels = as.numeric(ctrylabs)
 labs = attr(ctrylabs, "names")
 dat[, ctryf := factor(ctry, labels = labs, level = levels)]
 
 # male
 dat = dat[sex == 1 & age == 0 & year >= 1900 & year < 2020]
+# remove LE duplicates
 dat[, N := 1:.N, .(ctry, year, ex)]
 dat = dat[N == 1]
 anyDuplicated(dat[, .(ctry, year, ex)])
+
+# country labels
 dat[, ctry := as.numeric(ctry)]
 dat[, ctryf := droplevels(ctryf)]
 table(dat$ctry)
@@ -43,27 +57,55 @@ table(dat$ctryf)
 labels = names(attr(dat$name, "labels"))
 levels = as.numeric((attr(dat$name, "labels")))
 dat[, lnames := factor(name, levels = levels, labels = labels)]
-# str(dat)
 
 dat[, selection := 1]
 dat[year < 1950, selection := 0]
 dat[year < 1950 & piv == 2, selection := 1]
 dat[year < 1950 & name == 1 & (piv == 0 | piv == 1), selection := 1]
 
+countries = unique(dat$ctry)
+dat[, fselection := factor(selection,  labels = c("Removed", "Included"))]
+
+savepdf(paste0(plots_path, "selection"))
+for (i in countries) {
+    print(
+        ggplot(dat[ctry == i], aes(year, ex, color = fselection)) +
+        geom_jitter(size = 0.5) +
+        theme_minimal() +
+        labs(title = lab_list[[as.character(i)]], 
+            x = "\nYear", y = "Life expectanty at age 0\n") +
+        theme(legend.position = "top", legend.title=element_blank())
+    )
+}
+dev.off()
+file.copy(paste0(plots_path, "selection.pdf"), manus_plots, 
+    recursive = TRUE)
+
 # problematics rows 
 # dat[, selection := 1]
 # dat[ctry == 2340 & year == 1936, selection := 0]
 
 # selection cases
-dat = data.table::copy(dat[selection == 1])
+if (select_estimates == "t") {
+    dat = data.table::copy(dat[selection == 1])
+} 
+
 dat[, N := .N, .(ctry, year)]
 table(dat$N)
 anyDuplicated(dat[, .(ctry, year, ex)])
 
-# testing values
-test = dat[ctry == 2020]
-test[year == 1904, .(ctry, year, ex, tseries1)]
-mean(test[year == 1904, .(ctry, year, ex, tseries1)]$ex)
+# # testing cases
+# test = dat[, .(.N, sd = sd(ex)) ,.(ctry, year)]
+# test[year < 1950 & ctry == 2020, .(ctry, year, sd, N)]
+# test[year < 1950 & ctry == 2460, .(ctry, year, sd, N)]
+# test[year < 1950 & ctry == 2060, .(ctry, year, sd, N)]
+# test[year < 1950 & ctry == 2130, .(ctry, year, sd, N)]
+# test[year < 1950 & ctry == 2280, .(ctry, year, sd, N)]
+
+# # testing values
+# test = dat[ctry == 2020]
+# test[year == 1904, .(ctry, year, ex, tseries1)]
+# mean(test[year == 1904, .(ctry, year, ex, tseries1)]$ex)
 
 # create variables
 # max ex = 78.6
@@ -154,23 +196,27 @@ summary(sdat$ex_sd)
 post = imp$post
 post["ex_sd"] = "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(0.001, 17.0))"
 
-# five datasets and 10 iterations
-imps = mice(sdat,
+# 100 datasets and 10 iterations
+# using average LE values
+imps = parmice(sdat,
     m = nsamples,
     method = meth,
     post = post,
     maxit = 10,
-    predictorMatrix = pred
-)
+    predictorMatrix = pred, 
+    n.core = 10, 
+    n.imp.core = 10,
+    cluster.seed = seed)
 
 # create imputation plots
-savepdf("output/plots/mice")
-    plot(imps)
-    densityplot(imps, ~ ex_sd)
-    densityplot(imps, ~ log_gdp)
-    densityplot(imps, ~ zpop)
+savepdf(paste0(plots_path, select_estimates, "mice"))
+    print(plot(imps))
+    print(densityplot(imps, ~ ex_sd))
+    print(densityplot(imps, ~ log_gdp))
+    print(densityplot(imps, ~ zpop))
 dev.off()
-file.copy("output/plots/mice.pdf", "manuscript/plots/", recursive = TRUE)
+file.copy(paste0(plots_path, select_estimates, "mice.pdf"), manus_plots, 
+    recursive = TRUE)
 
 # combine samples of ex with imputed values
 cimps = data.table(complete(imps, action = "long", include = TRUE))
@@ -181,22 +227,29 @@ for (i in 1:nsamples) {
 }
 timps = test_list
 
+# random imputation
 idat = timps[[sample(1:nsamples, 1)]]
 names(idat)
 
+# GDP checks
 countries = unique(sdat[, ctry])
-savepdf("output/plots/imputation_check_gdp")
+savepdf(paste0(plots_path, select_estimates, "imputation_check_gdp"))
 for (i in countries) {
     print(ggplot(data = idat[ctry == i, .(log_gdp, year, gdp_missing)],
         aes(year, log_gdp, color = gdp_missing)) +
-        geom_point() + labs(title = i, x = "Year", y = "Log GDP", color = NULL)) 
-
+        geom_point() +
+        labs(title = lab_list[[as.character(i)]], 
+        x = "\nYear", y = "Log GDP\n", color = NULL) +
+        theme_minimal() + 
+        theme(legend.position = "top", legend.title=element_blank())
+    ) 
 }
 dev.off()
-file.copy("output/plots/imputation_check_gdp.pdf", "manuscript/plots", recursive = TRUE)
+file.copy(paste0(plots_path, select_estimates, "imputation_check_gdp.pdf"), 
+    manus_plots,, recursive = TRUE)
 
-# save files
-saveRDS(idat, "output/data/single-imputation.rds")
-saveRDS(sdat, "output/data/aggregate-data.rds")
-saveRDS(dat, "output/data/raw-data.rds")
-saveRDS(timps, "output/data/imputations.rds")
+# create data list
+data_list = list("single-imputation" = idat, "aggregate-data"  = sdat, 
+    "raw-data" = dat,  "imputations" = timps, "ctrylabels" = lab_list)
+
+saveRDS(data_list, paste0(data_path, select_estimates, "datalist.rds"))

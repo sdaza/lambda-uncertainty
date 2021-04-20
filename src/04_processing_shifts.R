@@ -28,22 +28,3 @@ savepdf("output/plots/shifts_comparison")
     }
 dev.off()
 file.copy("output/plots/shifts_comparison.pdf", "manuscript/plots", recursive = TRUE)
-
-
-# fit checks plots 
-# todo: move them to le files
-# plots_checks = prediction_checks_pp_ex(ppred, idat, ctrys, vars, y = "ex_mean", x = "year", 
-#     transform = TRUE)
-# savepdf("output/plots/fit_no_error_pp")
-#     print(plots_checks)
-# dev.off()
-# file.copy("output/plots/fit_no_error_pp.pdf", "manuscript/plots/", recursive = TRUE)    
-
-# # preferred model 
-# preferred_model = which.max(stacking_wts)
-# plots_checks = prediction_checks_ex(model_list[[preferred_model]], idat, ctrys, vars, y = "ex_mean", x = "year", transform = TRUE)
-
-# savepdf(paste0("output/plots/fit_no_error_m", preferred_model))
-#     print(plots_checks)
-# dev.off()
-# file.copy(paste0("output/plots/fit_no_error_m", preferred_model, ".pdf"), "manuscript/plots/", recursive = TRUE)   

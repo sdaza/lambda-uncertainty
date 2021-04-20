@@ -115,45 +115,8 @@ savepdf = function(file, width = 16, height = 10, mgp = c(2.2,0.45,0),
 }
 
 
-prediction_checks_ex = function(model, data, countries, variables, y, x, maxy = 2, transform = FALSE) {
-
-    variables = unique(c(variables, y, x))
-    posterior = data.table(predict(model))
-    if (transform) {
-        vars = c('Estimate', 'Q2.5', 'Q97.5')
-        posterior[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
-
-    }
-    pred = data.table(cbind(data[, ..variables], posterior))
-
-    setnames(pred, c('Estimate', 'Q2.5', 'Q97.5'), c('m', 'lo', 'hi'))
-
-    wsd = sd(data[[y]])
-    max_ex = max(data[, y, with = FALSE]) + maxy * wsd
-    min_ex = min(data[, y, with = FALSE]) - maxy * wsd
-    max_year = max(data[, x, with = FALSE])
-    min_year = min(data[, x, with = FALSE])
-
-    plots = list()
-    for (c in seq_along(countries)) {
-        plots[[c]] = ggplot(pred[ctry == countries[c]], aes_string(x=x, y=y))+
-            geom_line(aes(y = m), color='#2b8cbe', size = 0.4)  +
-            geom_ribbon(aes(ymin = lo, ymax = hi), fill = '#a6bddb', alpha=0.2)  +
-            geom_point(size=0.3, color='#e34a33', alpha=0.4) +
-            labs(title = countries[c]) +
-            ylim(min_ex, max_ex) +
-            xlim(min_year, max_year) +
-            theme_minimal() +
-            geom_vline(xintercept = 1950, size=0.5, color='red', alpha=0.8, linetype = 'dotted') +
-            geom_vline(xintercept = 1970, size=0.5, color='red', alpha=0.8, linetype = 'dotted') +
-            geom_vline(xintercept = 1990, size=0.5, color='red', alpha=0.8, linetype = 'dotted')
-    }
-    return(plots)
-}
-
-
-prediction_checks_pp_ex = function(posterior, data, countries, variables, y, x, 
-    maxy = 2, transform = FALSE) {
+prediction_check_plots = function(posterior, data, countries, variables, y, x, 
+    maxy = 2, transform = FALSE, country_labels) {
 
     posterior = data.table(posterior)
     if (transform) {
@@ -165,6 +128,7 @@ prediction_checks_pp_ex = function(posterior, data, countries, variables, y, x,
     pred = cbind(data[, ..variables], posterior)
     setnames(pred, c('Estimate', 'Q2.5', 'Q97.5'), c('m', 'lo', 'hi'))
 
+    # setup limitis of plots
     wsd = sd(data[[y]])
     max_ex = max(data[, y, with = FALSE]) + maxy * wsd
     min_ex = min(data[, y, with = FALSE]) - maxy * wsd
@@ -177,7 +141,7 @@ prediction_checks_pp_ex = function(posterior, data, countries, variables, y, x,
             geom_line(aes(y = m), color='#2b8cbe', size = 0.4)  +
             geom_ribbon(aes(ymin = lo, ymax = hi), fill = '#a6bddb', alpha=0.2) +
             geom_point(size=0.3, color='#e34a33', alpha=0.4) +
-            labs(title = countries[c]) +
+            labs(title = country_labels[[as.character(countries[c])]]) +
             ylim(min_ex, max_ex) +
             xlim(min_year, max_year) +
             theme_minimal() +
@@ -210,6 +174,7 @@ createComparisonData = function(data, countries, years, cyears, dyears) {
     }
     return(rbindlist(datalist, idcol = "comp"))
 }
+
 
 computeShift = function(predictions, countries) {
     output = list()
@@ -273,4 +238,31 @@ createShifts = function(model_replicates, newdata, nsamples = 1000, countries = 
     
     return(list("shifts" = shifts, "weight_list" = weight_list, "avg_weights" = avg_weights))
        
+}
+
+
+# imputation function
+parmice <- function(data, n.core = detectCores() - 1, n.imp.core = 2,
+                    seed = NULL, m = NULL, ...){
+  suppressMessages(require(parallel))
+  cl <- makeCluster(n.core, ...)
+  clusterExport(cl, varlist = "data", envir = environment())
+  clusterEvalQ(cl, library(miceadds)) # to use miceadds!
+  if (!is.null(seed)) {
+    clusterSetRNGStream(cl, seed)
+  }
+  if (!is.null(m)) {
+    n.imp.core <- ceiling(m / n.core)
+  }
+  imps <- parLapply(cl = cl, X = 1:n.core, fun = function(i){
+    mice(data, print = FALSE, m = n.imp.core, ...)
+  })
+  stopCluster(cl)
+  imp <- imps[[1]]
+  if (length(imps) > 1) {
+    for (i in 2:length(imps)) {
+      imp <- ibind(imp, imps[[i]])
+    }
+  }
+  return(imp)
 }

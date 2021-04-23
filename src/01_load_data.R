@@ -66,7 +66,7 @@ dat[year < 1950 & name == 1 & (piv == 0 | piv == 1), selection := 1]
 countries = unique(dat$ctry)
 dat[, fselection := factor(selection,  labels = c("Removed", "Included"))]
 
-savepdf(paste0(plots_path, "selection"))
+savepdf(paste0(plots_path, "le_estimate_selection"))
 for (i in countries) {
     print(
         ggplot(dat[ctry == i], aes(year, ex, color = fselection)) +
@@ -78,7 +78,7 @@ for (i in countries) {
     )
 }
 dev.off()
-file.copy(paste0(plots_path, "selection.pdf"), manus_plots, 
+file.copy(paste0(plots_path, "le_estimate_selection.pdf"), manus_plots, 
     recursive = TRUE)
 
 # problematics rows 

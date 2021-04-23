@@ -1,0 +1,29 @@
+
+\begin{table}
+\caption{Models for LE and log GPD no measurement error, stacking weight in parenthesis, 10 imputations}
+\begin{center}
+\scalebox{0.7}{
+\begin{threeparttable}
+\begin{tabular}{l D{.}{.}{4.8} D{.}{.}{4.8} D{.}{.}{4.8} D{.}{.}{4.8} D{.}{.}{4.8} D{.}{.}{4.8}}
+\hline
+ & \multicolumn{1}{c}{Model 1 (0.01)} & \multicolumn{1}{c}{Model 2 (0)} & \multicolumn{1}{c}{Model 3 (0.01)} & \multicolumn{1}{c}{Model 4 (0.01)} & \multicolumn{1}{c}{Model 5 (0.03)} & \multicolumn{1}{c}{Model 6 (0.94)} \\
+\hline
+Constant            & 0.22^{*}     & 0.23^{*}     & 0.29^{*}      & 0.26^{*}     & 0.36^{*}     & 0.36^{*}     \\
+                    & [0.13; 0.32] & [0.10; 0.35] & [ 0.17; 0.41] & [0.19; 0.34] & [0.27; 0.44] & [0.29; 0.43] \\
+Log GDP             & 0.63^{*}     & 0.72^{*}     & 0.01          & 0.42^{*}     & 0.56^{*}     & 0.12^{*}     \\
+                    & [0.61; 0.65] & [0.60; 0.83] & [-0.10; 0.12] & [0.40; 0.44] & [0.46; 0.66] & [0.05; 0.19] \\
+Year (standardized) &              &              & 0.35^{*}      &              &              & 0.31^{*}     \\
+                    &              &              & [ 0.35; 0.36] &              &              & [0.30; 0.32] \\
+\hline
+R$^2$               & 0.83         & 0.89         & 0.98          & 0.96         & 0.98         & 0.99         \\
+Num. obs.           & 1412         & 1412         & 1412          & 1412         & 1412         & 1412         \\
+\hline
+\end{tabular}
+\begin{tablenotes}[flushleft]
+\scriptsize{\item $^*$ Null hypothesis value outside the confidence interval.}
+\end{tablenotes}
+\end{threeparttable}
+}
+\label{tab:ex_no_error}
+\end{center}
+\end{table}

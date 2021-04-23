@@ -1,123 +1,153 @@
-############################
-# life expectancy models
+######################################
+# life expectancy models with error
 # author: sebastian daza
-############################
+#####################################3
 
-# R < /home/s/sdaza/00projects/lambda/src/le_models.R > /home/s/sdaza/00projects/lambda/output/le_models.log  --no-save  &
 # R < src/03_le_models_err.R > output/log/03_le_models_err.log  --no-save  &
 
 
 # libraries, functions and options
-library(haven)
 library(data.table)
 library(stringr)
 library(brms)
-library(loo)
-library(future)
-plan(multiprocess, workers = 15)
-options(future.globals.maxSize = 8000 * 1024^2)
-options(future.rng.onMisuse="ignore")
+
+library(doParallel)
+cl = makeCluster(20)
+registerDoParallel(cl)
+seed = 103231
 
 library(texreg)
 library(ggplot2)
-library(patchwork)
 source("src/utils.R")
-# options(mc.cores = 15)
-
-# slack setup
 slackr::slackr_setup(config_file = ".slackr")
 seed = 19380302
 set.seed(seed)
 
+# f (false) or t (true)
+select_estimates = "t"
+
+# paths
+plots_path = "output/plots/"
+tables_path = "output/tables/"
+data_path = "output/data/"
+manus_plots = "manuscript/plots"
+manus_tables  = "manuscript/tables"
+
 # read data
-# sdat = readRDS("output/data/aggregate-data.rds")
-idat = readRDS("output/data/single-imputation.rds")
-timps = readRDS("output/data/imputations.rds")
+data_list = readRDS(paste0(data_path, select_estimates, "datalist.rds"))
+timps = data_list[["imputations"]]
+idat = data_list[["single-imputation"]]
+country_labs = data_list[["ctrylabels"]]
+
+# replicates
 nsamples = length(timps)
+timps = timps[1:nsamples]
 
-# check values
-# values = NULL
-# for (i in 1:100) {
-    # values = c(values, timps[[i]][ctry == 2140 & year == 1950, wy])
-# }
+iterations = list(
+    "f" = list(6000, 6000, 9000, 25000, 25000, 25500),
+    "t" = list(4000, 4000, 5000, 12000, 12000, 12000)
+)
 
-# models 
-m1 = brm_multiple(wy ~ log_gdp + (1 | ctry50), data = timps, 
-    iter = 4000, 
-    warmup = 1000, 
-    chains = 1, 
-    combine = FALSE)
-
-m2 = brm_multiple(wy ~ log_gdp + (log_gdp | ctry50), data = timps, 
-    iter = 4000, 
-    warmup = 1000, 
-    chains = 1,
-    combine = FALSE)
-
-m3 = brm_multiple(wy ~ log_gdp + zyear + (log_gdp | ctry50), data = timps, 
-    iter = 4000, 
-    warmup = 1000, 
-    chains = 1,  
-    control = list(max_treedepth = 15), 
-    combine = FALSE)
-
-m4 = brm_multiple(wy ~ log_gdp + (1 | ctryear), data = timps, 
-    iter = 12000, 
-    warmup = 1000, 
-    chains = 1, 
-    combine = FALSE)
-
-m5 = brm_multiple(wy ~ log_gdp + (log_gdp | ctryear), data = timps, 
-    iter = 12000, 
-    warmup = 1000, 
-    chains = 1,  
-    control = list(max_treedepth = 15), 
-    combine = FALSE)
-
-m6 = brm_multiple(wy ~ log_gdp + zyear + (log_gdp | ctryear), data = timps, 
-    iter = 12000, 
-    warmup = 1000, 
-    chains = 1,  
-    control = list(max_treedepth = 15),
-    combine = FALSE)
-
-# create datasets to contrast
-countries = unique(idat$ctry)
-years = c(1950)
-cyears = list(c("1950", "1950-1969"))
-dyears = list(c("1950", "1950+"))
-
-datasets = list()
-for (i in 1:nsamples) {
-    datasets[[i]] = createComparisonData(timps[[i]], countries, 
-    years, cyears, dyears)
+multiResultClass = function(models = NULL, shifts = NULL) {
+  me = list(models = models, shifts = shifts)
+  class(me) = append(class(me), "multiResultClass")
+  return(me)
 }
 
-# countries with values before and after 1950
-countries = unique(datasets[[1]]$ctry)
-model_replicates = list(m1, m2, m3, m4, m5, m6)
-rm(m1, m2, m3, m4, m5, m6)
-# saveRDS(model_replicates, "output/models/model_replicates_error.rds")
-slackr::slackr_msg(txt = paste0("LE error replicates: ", Sys.time()))
+# models 
+output = foreach(i = 1:nsamples) %dopar% {
 
-# compute shifts
-shifts = createShifts(model_replicates, datasets, countries = countries, 
-    nsamples = 3000) 
-saveRDS(shifts, "output/models/shifts_error.rds")
+    results = multiResultClass()
+    library(data.table)
+    library(brms)
+    library(loo)
+    source("src/utils.R")
+    
+    models = list()
+    dat = timps[[i]]
+
+    models[[1]] = brm(wy_mean ~ log_gdp + (1 | ctry50), data = dat, 
+        iter = iterations[[select_estimates]][[1]], 
+        warmup = 1000, 
+        chains = 1)
+
+    models[[2]] = brm(wy_mean ~ log_gdp + (log_gdp | ctry50), data = dat, 
+        iter = iterations[[select_estimates]][[2]], 
+        warmup = 1000, 
+        chains = 1, 
+        control = list(max_treedepth = 15))
+
+    models[[3]] = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctry50), data = dat, 
+        iter = iterations[[select_estimates]][[3]], 
+        warmup = 1000, 
+        chains = 1, 
+        control = list(max_treedepth = 15))
+
+    models[[4]] = brm(wy_mean ~ log_gdp + (1 | ctryear), data = dat, 
+        iter = iterations[[select_estimates]][[4]], 
+        warmup = 1000, 
+        chains = 1)
+
+    models[[5]] = brm(wy_mean ~ log_gdp + (log_gdp | ctryear), data = dat, 
+        iter = iterations[[select_estimates]][[5]], 
+        warmup = 1000, 
+        chains = 1, 
+        control = list(max_treedepth = 15))
+
+    models[[6]] = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctryear), data = dat, 
+        iter = iterations[[select_estimates]][[6]], 
+        warmup = 1000, 
+        chains = 1,
+        control = list(max_treedepth = 15))
+
+    results$models = models
+
+    countries = unique(idat$ctry)
+    years = c(1950)
+    cyears = list(c("1950", "1950-1969"))
+    dyears = list(c("1950", "1950+"))
+
+    newdata = createComparisonData(dat, countries, 
+        years, cyears, dyears)
+    countries = unique(newdata$ctry)
+
+    results$shifts = createShifts(models, newdata, countries = countries, 
+        nsamples = 5000) 
+
+    return(results)
+}
+
+# extract results
+model_replicates = list()
+shifts = list()
+weights = list()
+nmodels = length(output[[1]]$models)
+for (i in seq_along(output)) {
+   shifts[[i]] = output[[i]][["shifts"]][["values"]]
+   weights[[i]] = output[[i]][["shifts"]][["weights"]]
+}
+
+shifts = rbindlist(shifts, idcol = "replicate")
+avg_weights = apply(do.call(rbind, weights), 2, mean)
+
+model_list = list()
+lmodels = list()
+for (i in 1:nmodels) {  
+    for (h in 1:nsamples) {
+        lmodels[[h]] = output[[h]][["models"]][[i]]
+    }
+    model_list[[i]] = combine_models(mlist = lmodels, check_data = FALSE)
+    lmodels = list()
+}
+rm(lmodels, output)
+
+saveRDS(list("shifts" = shifts, "avg_weights" = avg_weights),
+    paste0(data_path, select_estimates, "shifts_error.rds"))
+rm(shifts)
 slackr::slackr_msg(txt = paste0("LE error saved shifts: ", Sys.time()))
 
-cm1 = combine_models(mlist = model_replicates[[1]], check_data = FALSE)
-cm2 = combine_models(mlist = model_replicates[[2]], check_data = FALSE)
-cm3 = combine_models(mlist = model_replicates[[3]], check_data = FALSE)
-cm4 = combine_models(mlist = model_replicates[[4]], check_data = FALSE)
-cm5 = combine_models(mlist = model_replicates[[5]], check_data = FALSE)
-cm6 = combine_models(mlist = model_replicates[[6]], check_data = FALSE)
-model_list = list(cm1, cm2, cm3, cm4, cm5, cm6)
-rm(model_replicates, cm1, cm2, cm3, cm4, cm5, cm6)
-# saveRDS(model_list, "output/models/model_combined_error.rds")
-
 # table
-cnames = paste0("Model ", 1:length(model_list),  " (", round(shifts[["avg_weights"]], 2), ")")
+cnames = paste0("Model ", 1:length(model_list),  " (", round(avg_weights, 2), ")")
 custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", "zyear" = "Year (standardized)")
 caption = paste0("Models for LE and log GPD measurement error, stacking weight in parenthesis, ", 
     nsamples, " replicates")
@@ -138,10 +168,10 @@ texreg(model_list,
     include.waic = FALSE,
     include.random = FALSE,
     reloo = FALSE,
-    file = "output/tables/models_error.tex"
+    file = paste0(table_path, select_estimates, "models_error.tex")
 )    
-file.copy("output/tables/models_error.tex", "manuscript/tables/", recursive = TRUE)    
-
+file.copy(paste0(table_path, select_estimates, "models_error.tex"), manus_tables, 
+    recursive = TRUE)    
 
 # send message to slack
-slackr::slackr_msg(txt = paste0("LE models no error finished at: ", Sys.time()))
+slackr::slackr_msg(txt = paste0("LE models error finished at: ", Sys.time()))

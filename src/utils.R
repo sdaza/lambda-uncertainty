@@ -187,82 +187,111 @@ computeShift = function(predictions, countries) {
 }
 
 
-createShifts = function(model_replicates, newdata, nsamples = 1000, countries = NULL, 
+createShifts = function(models, newdata, nsamples = 1000, countries = NULL, 
     transform = TRUE) {
     
-    models = length(model_replicates)
-    replicates = length(model_replicates[[1]])
-
-    # list to save output
-    weight_list = list()
-    shift_estimates = list()
-    
-    for (i in 1:replicates) {
-
-        print(paste0("::::::::: replicate ", i, " :::::::::"))
-
-        cv_list = list()
-        lpd = NULL
-        
-        # temporary model list
-        rmodels = list()
-
-        for (h in 1:models) {
-            print(paste0("::::::::: model ", h, " :::::::::"))
-            rmodels[[h]] = model_replicates[[h]][[i]]
-            cv_list[[h]] = suppressWarnings(suppressMessages(suppressPackageStartupMessages(
-                kfold(rmodels[[h]], K = 10, chains = 1))))
-            lpd = cbind(lpd, cv_list[[h]]$pointwise[, "elpd_kfold"])
-
-            # cv_list[[h]] = brms::loo(rmodels[[h]], moment_match = TRUE, reloo = FALSE, 
-                # cores = 20, reloo_args = list(chains = 1))
-            # lpd = cbind(lpd, cv_list[[h]]$pointwise[, "elpd_loo"])
-        }
-
-        weight_list[[i]]= as.vector(stacking_weights(lpd))
-        ndata = newdata[[i]]
-        pred = rlang::invoke(pp_average, rmodels, weights = weight_list[[i]], newdata = ndata, 
-            summary = FALSE, nsamples = nsamples)
-        pred = data.table(pred)
-
-        if (transform) {
-            vars = names(pred)
-            pred[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
-        }
-
-        shift_estimates[[i]] = setDT(computeShift(pred, countries))
-
+    lpd = NULL
+    for (h in seq_along(models)) {
+        print(paste0("::::::::: model ", h, " :::::::::"))
+        cv = suppressWarnings(suppressMessages(suppressPackageStartupMessages(
+                kfold(models[[h]], K = 10, chains = 1, cores = 2))))
+            lpd = cbind(lpd, cv$pointwise[, "elpd_kfold"])
     }
-    shifts = rbindlist(shift_estimates, idcol = "replicate")
-    avg_weights = apply(do.call(rbind, weight_list), 2, mean)
     
-    return(list("shifts" = shifts, "weight_list" = weight_list, "avg_weights" = avg_weights))
-       
+    weights= as.vector(stacking_weights(lpd))
+    pred = rlang::invoke(pp_average, models, weights = weights, 
+            newdata = newdata, 
+            summary = FALSE, nsamples = nsamples)
+    pred = data.table(pred)
+    if (transform) {
+        vars = names(pred)
+        pred[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
+    }
+    shifts = setDT(computeShift(pred, countries))
+    return(list("values" = shifts, "weights" = weights)) 
 }
 
 
+
+# createShifts = function(model_replicates, newdata, nsamples = 1000, countries = NULL, 
+#     transform = TRUE) {
+    
+#     models = length(model_replicates)
+#     replicates = length(model_replicates[[1]])
+
+#     # list to save output
+#     weight_list = list()
+#     shift_estimates = list()
+    
+#     for (i in 1:replicates) {
+
+#         print(paste0("::::::::: replicate ", i, " :::::::::"))
+
+#         cv_list = list()
+#         lpd = NULL
+        
+#         # temporary model list
+#         rmodels = list()
+
+#         for (h in 1:models) {
+#             print(paste0("::::::::: model ", h, " :::::::::"))
+#             cv_list[[h]] = suppressWarnings(suppressMessages(suppressPackageStartupMessages(
+#                 kfold(model_replicates[[h]][[i]], K = 10, chains = 1))))
+#             lpd = cbind(lpd, cv_list[[h]]$pointwise[, "elpd_kfold"])
+
+#             # cv_list[[h]] = brms::loo(rmodels[[h]], moment_match = TRUE, reloo = FALSE, 
+#                 # cores = 20, reloo_args = list(chains = 1))
+#             # lpd = cbind(lpd, cv_list[[h]]$pointwise[, "elpd_loo"])
+#         }
+
+
+#         weight_list[[i]]= as.vector(stacking_weights(lpd))
+#         ndata = newdata[[i]]
+#         pred = rlang::invoke(pp_average, 
+#             getModels(model_replicates, models, i), weights = weight_list[[i]], newdata = ndata, 
+#             summary = FALSE, nsamples = nsamples)
+#         pred = data.table(pred)
+
+#         if (transform) {
+#             vars = names(pred)
+#             pred[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
+#         }
+
+#         shift_estimates[[i]] = setDT(computeShift(pred, countries))
+
+#     }
+#     shifts = rbindlist(shift_estimates, idcol = "replicate")
+#     avg_weights = apply(do.call(rbind, weight_list), 2, mean)
+    
+#     return(list("shifts" = shifts, "weight_list" = weight_list, "avg_weights" = avg_weights))
+       
+# }
+
+
 # imputation function
-parmice <- function(data, n.core = detectCores() - 1, n.imp.core = 2,
-                    seed = NULL, m = NULL, ...){
-  suppressMessages(require(parallel))
-  cl <- makeCluster(n.core, ...)
-  clusterExport(cl, varlist = "data", envir = environment())
-  clusterEvalQ(cl, library(miceadds)) # to use miceadds!
-  if (!is.null(seed)) {
-    clusterSetRNGStream(cl, seed)
-  }
-  if (!is.null(m)) {
-    n.imp.core <- ceiling(m / n.core)
-  }
-  imps <- parLapply(cl = cl, X = 1:n.core, fun = function(i){
-    mice(data, print = FALSE, m = n.imp.core, ...)
-  })
-  stopCluster(cl)
-  imp <- imps[[1]]
-  if (length(imps) > 1) {
-    for (i in 2:length(imps)) {
-      imp <- ibind(imp, imps[[i]])
+parmice = function(data, n.core = detectCores() - 1, n.imp.core = 2,
+    seed = NULL, m = NULL, ...) {
+        
+    suppressMessages(require(parallel))
+    cl = makeCluster(n.core, ...)
+    clusterExport(cl, varlist = "data", envir = environment())
+    clusterEvalQ(cl, library(miceadds)) # to use miceadds!
+    if (!is.null(seed)) {
+        clusterSetRNGStream(cl, seed)
     }
-  }
-  return(imp)
+    if (!is.null(m)) {
+        n.imp.core = ceiling(m / n.core)
+    }
+    imps = parLapply(cl = cl, X = 1:n.core, fun = function(i) {
+        mice(data, print = FALSE, m = n.imp.core, ...)
+        }
+    )
+    stopCluster(cl)
+    imp = imps[[1]]
+    if (length(imps) > 1) {
+        for (i in 2:length(imps)) {
+            imp = ibind(imp, imps[[i]])
+        }
+    } 
+    return(imp)
 }

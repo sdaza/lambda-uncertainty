@@ -1,0 +1,139 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+* Project '~/00projects/git/lambda-uncertainty' loaded. [renv 0.13.2]
+> ######################################
+> # life expectancy models with error
+> # author: sebastian daza
+> #####################################3
+> 
+> # R < src/03_le_models_err.R > output/log/03_le_models_err.log  --no-save  &
+> 
+> 
+> # libraries, functions and options
+> library(data.table)
+> library(stringr)
+> library(brms)
+> 
+> library(doParallel)
+> cl = makeCluster(20)
+> registerDoParallel(cl)
+> seed = 103231
+> 
+> library(texreg)
+> library(ggplot2)
+> source("src/utils.R")
+> slackr::slackr_setup(config_file = ".slackr")
+[1] "Successfully connected to Slack"
+> seed = 19380302
+> set.seed(seed)
+> 
+> # f (false) or t (true)
+> select_estimates = "t"
+> 
+> # paths
+> plots_path = "output/plots/"
+> tables_path = "output/tables/"
+> data_path = "output/data/"
+> manus_plots = "manuscript/plots"
+> manus_tables  = "manuscript/tables"
+> 
+> # read data
+> data_list = readRDS(paste0(data_path, select_estimates, "datalist.rds"))
+> timps = data_list[["imputations"]]
+> idat = data_list[["single-imputation"]]
+> country_labs = data_list[["ctrylabels"]]
+> 
+> # replicates
+> nsamples = length(timps)
+> timps = timps[1:nsamples]
+> 
+> iterations = list(
++     "f" = list(6000, 6000, 9000, 25000, 25000, 25500),
++     "t" = list(4000, 4000, 5000, 12000, 12000, 12000)
++ )
+> 
+> multiResultClass = function(models = NULL, shifts = NULL) {
++   me = list(models = models, shifts = shifts)
++   class(me) = append(class(me), "multiResultClass")
++   return(me)
++ }
+> 
+> # models 
+> output = foreach(i = 1:nsamples) %dopar% {
++ 
++     results = multiResultClass()
++     library(data.table)
++     library(brms)
++     library(loo)
++     source("src/utils.R")
++     
++     models = list()
++     dat = timps[[i]]
++ 
++     models[[1]] = brm(wy_mean ~ log_gdp + (1 | ctry50), data = dat, 
++         iter = iterations[[select_estimates]][[1]], 
++         warmup = 1000, 
++         chains = 1)
++ 
++     models[[2]] = brm(wy_mean ~ log_gdp + (log_gdp | ctry50), data = dat, 
++         iter = iterations[[select_estimates]][[2]], 
++         warmup = 1000, 
++         chains = 1, 
++         control = list(max_treedepth = 15))
++ 
++     models[[3]] = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctry50), data = dat, 
++         iter = iterations[[select_estimates]][[3]], 
++         warmup = 1000, 
++         chains = 1, 
++         control = list(max_treedepth = 15))
++ 
++     models[[4]] = brm(wy_mean ~ log_gdp + (1 | ctryear), data = dat, 
++         iter = iterations[[select_estimates]][[4]], 
++         warmup = 1000, 
++         chains = 1)
++ 
++     models[[5]] = brm(wy_mean ~ log_gdp + (log_gdp | ctryear), data = dat, 
++         iter = iterations[[select_estimates]][[5]], 
++         warmup = 1000, 
++         chains = 1, 
++         control = list(max_treedepth = 15))
++ 
++     models[[6]] = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctryear), data = dat, 
++         iter = iterations[[select_estimates]][[6]], 
++         warmup = 1000, 
++         chains = 1,
++         control = list(max_treedepth = 15))
++ 
++     results$models = models
++ 
++     countries = unique(idat$ctry)
++     years = c(1950)
++     cyears = list(c("1950", "1950-1969"))
++     dyears = list(c("1950", "1950+"))
++ 
++     newdata = createComparisonData(dat, countries, 
++         years, cyears, dyears)
++     countries = unique(newdata$ctry)
++ 
++     results$shifts = createShifts(models, newdata, countries = countries, 
++         nsamples = 5000) 
++ 
++     return(results)
++ }

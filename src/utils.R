@@ -4,6 +4,9 @@
 ########################
 
 
+library(texreg)
+
+
 # get original values from weibull transformation
 transWeibull = function(x, maxvalue = 100) {
     y = x / (maxvalue + 1.05)
@@ -188,13 +191,13 @@ computeShift = function(predictions, countries) {
 
 
 createShifts = function(models, newdata, nsamples = 1000, countries = NULL, 
-    transform = TRUE) {
+    transform = TRUE, K = 10) {
     
     lpd = NULL
     for (h in seq_along(models)) {
         print(paste0("::::::::: model ", h, " :::::::::"))
         cv = suppressWarnings(suppressMessages(suppressPackageStartupMessages(
-                kfold(models[[h]], K = 10, chains = 1, cores = 2))))
+                kfold(models[[h]], K = K, chains = 1, cores = 2))))
             lpd = cbind(lpd, cv$pointwise[, "elpd_kfold"])
     }
     
@@ -294,4 +297,39 @@ parmice = function(data, n.core = detectCores() - 1, n.imp.core = 2,
         }
     } 
     return(imp)
+}
+
+
+extractBRMS = function(model) {
+    sf = fixef(model)
+    coefnames = rownames(sf)
+    coefs = sf[, 1]
+    se = sf[, 2]
+    ci.low = sf[, 3]
+    ci.up = sf[, 4]
+
+    gof = numeric()
+    gof.names = character()
+    gof.decimal = logical()
+
+    n = stats::nobs(model)
+    gof = c(gof, n)
+    gof.names = c(gof.names, "Num. obs.")
+    gof.decimal = c(gof.decimal, FALSE)
+
+    rs = brms::bayes_R2(model)[1]
+    gof = c(gof, rs)
+    gof.names = c(gof.names, "R$^2$")
+    gof.decimal = c(gof.decimal, TRUE)
+
+    tr = texreg::createTexreg(
+        coef.names = coefnames,
+        coef = coefs,
+        se = se,
+        ci.low = ci.low,
+        ci.up = ci.up,
+        gof.names = gof.names,
+        gof = gof,
+        gof.decimal = gof.decimal)
+    return(tr)
 }

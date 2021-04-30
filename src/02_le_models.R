@@ -12,7 +12,7 @@ library(stringr)
 library(brms)
 
 library(doParallel)
-cl = makeCluster(20)
+cl = makeCluster(10)
 registerDoParallel(cl)
 seed = 103231
 
@@ -129,6 +129,10 @@ for (i in seq_along(output)) {
 
 shifts = rbindlist(shifts, idcol = "replicate")
 avg_weights = apply(do.call(rbind, weights), 2, mean)
+saveRDS(list("shifts" = shifts, "avg_weights" = avg_weights),
+    paste0(data_path, select_estimates, "shifts_no_error.rds"))
+rm(shifts)
+slackr::slackr_msg(txt = paste0("LE no error saved shifts: ", Sys.time()))
 
 model_list = list()
 lmodels = list()
@@ -140,11 +144,6 @@ for (i in 1:nmodels) {
     lmodels = list()
 }
 rm(lmodels, output)
-
-saveRDS(list("shifts" = shifts, "avg_weights" = avg_weights),
-    paste0(data_path, select_estimates, "shifts_no_error.rds"))
-rm(shifts)
-slackr::slackr_msg(txt = paste0("LE no error saved shifts: ", Sys.time()))
 
 # create predicitive checks 
 countries = unique(idat$ctry)
@@ -190,13 +189,14 @@ texreg(model_list,
     caption = caption, 
     custom.model.names = cnames, 
     custom.coef.map = custom_coeff_map,
-    label = "tab:ex_no_error",
+    label = paste0("tab:", select_estimates,"ex_no_error"),
     scalebox = 0.7,
     center = TRUE,
     dcolumn = TRUE, 
     use.packages = FALSE, 
     threeparttable = TRUE, 
     caption.above = TRUE, 
+    use.HDI = FALSE, 
     include.loo.ic = FALSE,
     inclue.rsquared = TRUE,
     include.waic = FALSE,
@@ -208,4 +208,4 @@ file.copy(paste0(tables_path, select_estimates, "models_no_error.tex"), manus_ta
         recursive = TRUE)
 
 # send message to slack
-slackr::slackr_msg(txt = paste0("LE models error finished at: ", Sys.time()))
+slackr::slackr_msg(txt = paste0("LE models no error finished at: ", Sys.time()))

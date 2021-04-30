@@ -3,7 +3,8 @@
 # author: sebastian daza
 #####################################3
 
-# R < src/03_le_models_err.R > output/log/03_le_models_err.log  --no-save  &
+# R < src/03_le_models_err.R > output/log/03_le_models_err_t.log  --no-save  &
+# R < src/03_le_models_err.R > output/log/03_le_models_err_f.log  --no-save  &
 
 
 # libraries, functions and options
@@ -11,8 +12,9 @@ library(data.table)
 library(stringr)
 library(brms)
 
+
 library(doParallel)
-cl = makeCluster(20)
+cl = makeCluster(15)
 registerDoParallel(cl)
 seed = 103231
 
@@ -24,7 +26,7 @@ seed = 19380302
 set.seed(seed)
 
 # f (false) or t (true)
-select_estimates = "t"
+select_estimates = "f"
 
 # paths
 plots_path = "output/plots/"
@@ -41,6 +43,9 @@ country_labs = data_list[["ctrylabels"]]
 
 # replicates
 nsamples = length(timps)
+# nsamples = 2
+K = 10
+print(paste0("Number of replicates: ", nsamples))
 timps = timps[1:nsamples]
 
 iterations = list(
@@ -61,40 +66,41 @@ output = foreach(i = 1:nsamples) %dopar% {
     library(data.table)
     library(brms)
     library(loo)
+    
     source("src/utils.R")
     
     models = list()
     dat = timps[[i]]
 
-    models[[1]] = brm(wy_mean ~ log_gdp + (1 | ctry50), data = dat, 
+    models[[1]] = brm(wy ~ log_gdp + (1 | ctry50), data = dat, 
         iter = iterations[[select_estimates]][[1]], 
         warmup = 1000, 
         chains = 1)
 
-    models[[2]] = brm(wy_mean ~ log_gdp + (log_gdp | ctry50), data = dat, 
+    models[[2]] = brm(wy ~ log_gdp + (log_gdp | ctry50), data = dat, 
         iter = iterations[[select_estimates]][[2]], 
         warmup = 1000, 
         chains = 1, 
         control = list(max_treedepth = 15))
 
-    models[[3]] = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctry50), data = dat, 
+    models[[3]] = brm(wy ~ log_gdp + zyear + (log_gdp | ctry50), data = dat, 
         iter = iterations[[select_estimates]][[3]], 
         warmup = 1000, 
         chains = 1, 
         control = list(max_treedepth = 15))
 
-    models[[4]] = brm(wy_mean ~ log_gdp + (1 | ctryear), data = dat, 
+    models[[4]] = brm(wy ~ log_gdp + (1 | ctryear), data = dat, 
         iter = iterations[[select_estimates]][[4]], 
         warmup = 1000, 
         chains = 1)
 
-    models[[5]] = brm(wy_mean ~ log_gdp + (log_gdp | ctryear), data = dat, 
+    models[[5]] = brm(wy ~ log_gdp + (log_gdp | ctryear), data = dat, 
         iter = iterations[[select_estimates]][[5]], 
         warmup = 1000, 
         chains = 1, 
         control = list(max_treedepth = 15))
 
-    models[[6]] = brm(wy_mean ~ log_gdp + zyear + (log_gdp | ctryear), data = dat, 
+    models[[6]] = brm(wy ~ log_gdp + zyear + (log_gdp | ctryear), data = dat, 
         iter = iterations[[select_estimates]][[6]], 
         warmup = 1000, 
         chains = 1,
@@ -112,7 +118,7 @@ output = foreach(i = 1:nsamples) %dopar% {
     countries = unique(newdata$ctry)
 
     results$shifts = createShifts(models, newdata, countries = countries, 
-        nsamples = 5000) 
+        nsamples = 5000, K = K) 
 
     return(results)
 }
@@ -122,13 +128,19 @@ model_replicates = list()
 shifts = list()
 weights = list()
 nmodels = length(output[[1]]$models)
+print(paste0("Number of models: ", nmodels))
+
 for (i in seq_along(output)) {
    shifts[[i]] = output[[i]][["shifts"]][["values"]]
    weights[[i]] = output[[i]][["shifts"]][["weights"]]
 }
-
 shifts = rbindlist(shifts, idcol = "replicate")
 avg_weights = apply(do.call(rbind, weights), 2, mean)
+
+saveRDS(list("shifts" = shifts, "avg_weights" = avg_weights),
+    paste0(data_path, select_estimates, "shifts_error.rds"))
+rm(shifts)
+slackr::slackr_msg(txt = paste0("LE error saved shifts: ", Sys.time()))
 
 model_list = list()
 lmodels = list()
@@ -141,36 +153,35 @@ for (i in 1:nmodels) {
 }
 rm(lmodels, output)
 
-saveRDS(list("shifts" = shifts, "avg_weights" = avg_weights),
-    paste0(data_path, select_estimates, "shifts_error.rds"))
-rm(shifts)
-slackr::slackr_msg(txt = paste0("LE error saved shifts: ", Sys.time()))
+tabs = list()
+for (i in seq_along(model_list)) {
+    print(paste0("Extracting model ", i))
+    tabs[[i]] = extractBRMS(model_list[[1]])
+    model_list[[1]] = NULL
+}
+saveRDS(tabs, paste0(data_path, select_estimates, "tab_error.rds"))
 
 # table
 cnames = paste0("Model ", 1:length(model_list),  " (", round(avg_weights, 2), ")")
-custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", "zyear" = "Year (standardized)")
+custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", 
+    "zyear" = "Year (standardized)")
 caption = paste0("Models for LE and log GPD measurement error, stacking weight in parenthesis, ", 
     nsamples, " replicates")
 
-texreg(model_list, 
+texreg::texreg(tabs, 
     caption = caption, 
     custom.model.names = cnames, 
     custom.coef.map = custom_coeff_map,
-    label = "tab:ex_error",
+    label = paste0("tab:", select_estimates, "ex_error"),
     scalebox = 0.7,
     center = TRUE,
     dcolumn = TRUE, 
     use.packages = FALSE, 
     threeparttable = TRUE, 
     caption.above = TRUE, 
-    include.loo.ic = FALSE,
-    inclue.rsquared = TRUE,
-    include.waic = FALSE,
-    include.random = FALSE,
-    reloo = FALSE,
-    file = paste0(table_path, select_estimates, "models_error.tex")
+    file = paste0(tables_path, select_estimates, "models_error.tex")
 )    
-file.copy(paste0(table_path, select_estimates, "models_error.tex"), manus_tables, 
+file.copy(paste0(tables_path, select_estimates, "models_error.tex"), manus_tables, 
     recursive = TRUE)    
 
 # send message to slack

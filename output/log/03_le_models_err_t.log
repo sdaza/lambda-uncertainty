@@ -1,0 +1,219 @@
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+* Project '~/00projects/git/lambda-uncertainty' loaded. [renv 0.13.2]
+> ######################################
+> # life expectancy models with error
+> # author: sebastian daza
+> #####################################3
+> 
+> # R < src/03_le_models_err.R > output/log/03_le_models_err_t.log  --no-save  &
+> # R < src/03_le_models_err.R > output/log/03_le_models_err_f.log  --no-save  &
+> 
+> 
+> # libraries, functions and options
+> library(data.table)
+> library(stringr)
+> library(brms)
+> 
+> 
+> library(doParallel)
+> cl = makeCluster(15)
+> registerDoParallel(cl)
+> seed = 103231
+> 
+> library(texreg)
+> library(ggplot2)
+> source("src/utils.R")
+> slackr::slackr_setup(config_file = ".slackr")
+[1] "Successfully connected to Slack"
+> seed = 19380302
+> set.seed(seed)
+> 
+> # f (false) or t (true)
+> select_estimates = "t"
+> 
+> # paths
+> plots_path = "output/plots/"
+> tables_path = "output/tables/"
+> data_path = "output/data/"
+> manus_plots = "manuscript/plots"
+> manus_tables  = "manuscript/tables"
+> 
+> # read data
+> data_list = readRDS(paste0(data_path, select_estimates, "datalist.rds"))
+> timps = data_list[["imputations"]]
+> idat = data_list[["single-imputation"]]
+> country_labs = data_list[["ctrylabels"]]
+> 
+> # replicates
+> nsamples = length(timps)
+> # nsamples = 2
+> K = 10
+> print(paste0("Number of replicates: ", nsamples))
+[1] "Number of replicates: 100"
+> timps = timps[1:nsamples]
+> 
+> iterations = list(
++     "f" = list(6000, 6000, 9000, 25000, 25000, 25500),
++     "t" = list(4000, 4000, 5000, 12000, 12000, 12000)
++ )
+> 
+> multiResultClass = function(models = NULL, shifts = NULL) {
++   me = list(models = models, shifts = shifts)
++   class(me) = append(class(me), "multiResultClass")
++   return(me)
++ }
+> 
+> # models 
+> output = foreach(i = 1:nsamples) %dopar% {
++ 
++     results = multiResultClass()
++     library(data.table)
++     library(brms)
++     library(loo)
++     
++     source("src/utils.R")
++     
++     models = list()
++     dat = timps[[i]]
++ 
++     models[[1]] = brm(wy ~ log_gdp + (1 | ctry50), data = dat, 
++         iter = iterations[[select_estimates]][[1]], 
++         warmup = 1000, 
++         chains = 1)
++ 
++     models[[2]] = brm(wy ~ log_gdp + (log_gdp | ctry50), data = dat, 
++         iter = iterations[[select_estimates]][[2]], 
++         warmup = 1000, 
++         chains = 1, 
++         control = list(max_treedepth = 15))
++ 
++     models[[3]] = brm(wy ~ log_gdp + zyear + (log_gdp | ctry50), data = dat, 
++         iter = iterations[[select_estimates]][[3]], 
++         warmup = 1000, 
++         chains = 1, 
++         control = list(max_treedepth = 15))
++ 
++     models[[4]] = brm(wy ~ log_gdp + (1 | ctryear), data = dat, 
++         iter = iterations[[select_estimates]][[4]], 
++         warmup = 1000, 
++         chains = 1)
++ 
++     models[[5]] = brm(wy ~ log_gdp + (log_gdp | ctryear), data = dat, 
++         iter = iterations[[select_estimates]][[5]], 
++         warmup = 1000, 
++         chains = 1, 
++         control = list(max_treedepth = 15))
++ 
++     models[[6]] = brm(wy ~ log_gdp + zyear + (log_gdp | ctryear), data = dat, 
++         iter = iterations[[select_estimates]][[6]], 
++         warmup = 1000, 
++         chains = 1,
++         control = list(max_treedepth = 15))
++ 
++     results$models = models
++ 
++     countries = unique(idat$ctry)
++     years = c(1950)
++     cyears = list(c("1950", "1950-1969"))
++     dyears = list(c("1950", "1950+"))
++ 
++     newdata = createComparisonData(dat, countries, 
++         years, cyears, dyears)
++     countries = unique(newdata$ctry)
++ 
++     results$shifts = createShifts(models, newdata, countries = countries, 
++         nsamples = 5000, K = K) 
++ 
++     return(results)
++ }
+> 
+> # extract results
+> model_replicates = list()
+> shifts = list()
+> weights = list()
+> nmodels = length(output[[1]]$models)
+> print(paste0("Number of models: ", nmodels))
+[1] "Number of models: 6"
+> 
+> for (i in seq_along(output)) {
++    shifts[[i]] = output[[i]][["shifts"]][["values"]]
++    weights[[i]] = output[[i]][["shifts"]][["weights"]]
++ }
+> shifts = rbindlist(shifts, idcol = "replicate")
+> avg_weights = apply(do.call(rbind, weights), 2, mean)
+> 
+> saveRDS(list("shifts" = shifts, "avg_weights" = avg_weights),
++     paste0(data_path, select_estimates, "shifts_error.rds"))
+> rm(shifts)
+> slackr::slackr_msg(txt = paste0("LE error saved shifts: ", Sys.time()))
+> 
+> model_list = list()
+> lmodels = list()
+> for (i in 1:nmodels) {  
++     for (h in 1:nsamples) {
++         lmodels[[h]] = output[[h]][["models"]][[i]]
++     }
++     model_list[[i]] = combine_models(mlist = lmodels, check_data = FALSE)
++     lmodels = list()
++ }
+> rm(lmodels, output)
+> 
+> tabs = list()
+> for (i in seq_along(model_list)) {
++     print(paste0("Extracting model ", i))
++     tabs[[i]] = extractBRMS(model_list[[1]])
++     model_list[[1]] = NULL
++ }
+[1] "Extracting model 1"
+[1] "Extracting model 2"
+[1] "Extracting model 3"
+[1] "Extracting model 4"
+[1] "Extracting model 5"
+[1] "Extracting model 6"
+> saveRDS(tabs, paste0(data_path, select_estimates, "tab_error.rds"))
+> 
+> # table
+> cnames = paste0("Model ", 1:length(model_list),  " (", round(avg_weights, 2), ")")
+> custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", 
++     "zyear" = "Year (standardized)")
+> caption = paste0("Models for LE and log GPD measurement error, stacking weight in parenthesis, ", 
++     nsamples, " replicates")
+> 
+> texreg::texreg(tabs, 
++     caption = caption, 
++     custom.model.names = cnames, 
++     custom.coef.map = custom_coeff_map,
++     label = paste0("tab:", select_estimates, "ex_error"),
++     scalebox = 0.7,
++     center = TRUE,
++     dcolumn = TRUE, 
++     use.packages = FALSE, 
++     threeparttable = TRUE, 
++     caption.above = TRUE, 
++     file = paste0(tables_path, select_estimates, "models_error.tex")
++ )    
+> file.copy(paste0(tables_path, select_estimates, "models_error.tex"), manus_tables, 
++     recursive = TRUE)    
+[1] TRUE
+> 
+> # send message to slack
+> slackr::slackr_msg(txt = paste0("LE models error finished at: ", Sys.time()))
+> 

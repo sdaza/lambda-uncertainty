@@ -1,0 +1,47 @@
+
+\begin{table}[htp]
+\caption{Multivel Models Weibull Transformation of Life Expectancy 1950,\newline 19 countries, 61 average time points}
+\begin{center}
+\begin{scriptsize}
+\begin{tabular}{l D{.}{.}{5.3} D{.}{.}{5.3} D{.}{.}{5.3} D{.}{.}{5.3} D{.}{.}{5.3} }
+\toprule
+ & \multicolumn{1}{c}{Model 1} & \multicolumn{1}{c}{Model 2} & \multicolumn{1}{c}{Model 3} & \multicolumn{1}{c}{Model 4} & \multicolumn{1}{c}{Model 5} \\
+\midrule
+Fixed Effects                    &        &        &        &        &        \\
+                                 &        &        &        &        &        \\
+\quad Intercept                  & 0.50   & 0.17   & 0.51   & 0.22   & 0.22   \\
+                                 & (0.07) & (0.06) & (0.07) & (0.06) & (0.03) \\
+\quad Log GDP                    & 0.80   & 0.28   & 0.69   & 0.32   & 0.16   \\
+                                 & (0.11) & (0.09) & (0.09) & (0.08) & (0.05) \\
+\quad Log Urbanity Rate          &        & 0.96   &        & 0.78   & 0.07   \\
+                                 &        & (0.06) &        & (0.06) & (0.05) \\
+\quad Log Literacy Rate          &        & 0.67   &        & 0.58   & -0.03  \\
+                                 &        & (0.06) &        & (0.06) & (0.05) \\
+\quad Log Water Rate             &        &        & -0.04  & 0.04   & -0.07  \\
+                                 &        &        & (0.07) & (0.06) & (0.04) \\
+Random Effects                   &        &        &        &        &        \\
+                                 &        &        &        &        &        \\
+\quad Log Sewage Rate            &        &        & 0.48   & 0.34   & 0.16   \\
+                                 &        &        & (0.04) & (0.03) & (0.02) \\
+\quad Log Electricity Rate       &        &        & 0.08   & -0.16  & -0.01  \\
+                                 &        &        & (0.06) & (0.05) & (0.04) \\
+\quad Standardized Year          &        &        &        &        & 0.60   \\
+                                 &        &        &        &        & (0.02) \\
+Intercept SD                     & 0.51   & 0.45   & 0.52   & 0.45   & 0.20   \\
+                                 & (0.05) & (0.05) & (0.05) & (0.05) & (0.02) \\
+Log GDP Coef SD                  & 0.76   & 0.62   & 0.65   & 0.54   & 0.37   \\
+                                 & (0.08) & (0.06) & (0.07) & (0.06) & (0.04) \\
+Correlation Intercept - GDP Coef & -0.10  & -0.25  & -0.19  & -0.24  & -0.52  \\
+                                 & (0.15) & (0.13) & (0.13) & (0.13) & (0.10) \\
+\midrule
+Num. obs.                        & 1160   & 1160   & 1160   & 1160   & 1160   \\
+Num. obs.  ctry\_year            & 57     & 57     & 57     & 57     & 57     \\
+LOO Information Criterion        & -2176  & -2921  & -2607  & -3102  & -3648  \\
+Bayes $R^2$                      & 0.96   & 0.98   & 0.97   & 0.98   & 0.99   \\
+\bottomrule
+\multicolumn{6}{l}{\tiny{Year blocks: 1950-1969, 1970-1989, 1990$+$. Ony the GPD coefficient is random.}}
+\end{tabular}
+\end{scriptsize}
+\label{le_1950}
+\end{center}
+\end{table}

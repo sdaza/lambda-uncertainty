@@ -300,7 +300,7 @@ parmice = function(data, n.core = detectCores() - 1, n.imp.core = 2,
 }
 
 
-extractBRMS = function(model) {
+extractBRMS = function(model, r2 = TRUE) {
     sf = fixef(model)
     coefnames = rownames(sf)
     coefs = sf[, 1]
@@ -317,10 +317,12 @@ extractBRMS = function(model) {
     gof.names = c(gof.names, "Num. obs.")
     gof.decimal = c(gof.decimal, FALSE)
 
-    rs = brms::bayes_R2(model)[1]
-    gof = c(gof, rs)
-    gof.names = c(gof.names, "R$^2$")
-    gof.decimal = c(gof.decimal, TRUE)
+    if (r2) {
+        rs = brms::bayes_R2(model)[1]
+        gof = c(gof, rs)
+        gof.names = c(gof.names, "R$^2$")
+        gof.decimal = c(gof.decimal, TRUE)
+    }
 
     tr = texreg::createTexreg(
         coef.names = coefnames,

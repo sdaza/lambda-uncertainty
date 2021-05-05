@@ -27,33 +27,18 @@ Type 'q()' to quit R.
 > 
 > 
 > # libraries, functions and options
-> library(haven)
 > library(data.table)
 > library(stringr)
 > library(brms)
-> # library(loo)
 > 
 > library(doParallel)
-> cl = makeCluster(20)
+> cl = makeCluster(10)
 > registerDoParallel(cl)
 > seed = 103231
 > 
-> # library(future)
-> # plan(multiprocess, workers = 3, gc = TRUE)
-> # options(future.globals.maxSize = 30000 * 1024^2)
-> 
-> # cl = parallel::makeCluster(20)
-> # plan(cluster, workers = cl, gc = TRUE)
-> # # plan(multiprocess, workers = 10)
-> 
-> # options(future.rng.onMisuse="ignore")
-> 
 > library(texreg)
 > library(ggplot2)
-> # library(patchwork)
 > source("src/utils.R")
-> # options(mc.cores = 30, scipen=999)
-> # options(mc.cores = 10)
 > slackr::slackr_setup(config_file = ".slackr")
 [1] "Successfully connected to Slack"
 > seed = 19380302
@@ -152,180 +137,3 @@ Type 'q()' to quit R.
 + 
 +     return(results)
 + }
-> 
-> # extract results
-> model_replicates = list()
-> shifts = list()
-> weights = list()
-> nmodels = length(output[[1]]$models)
-> for (i in seq_along(output)) {
-+    shifts[[i]] = output[[i]][["shifts"]][["values"]]
-+    weights[[i]] = output[[i]][["shifts"]][["weights"]]
-+ }
-> 
-> shifts = rbindlist(shifts, idcol = "replicate")
-> avg_weights = apply(do.call(rbind, weights), 2, mean)
-> 
-> model_list = list()
-> lmodels = list()
-> for (i in 1:nmodels) {  
-+     for (h in 1:nimputations) {
-+         lmodels[[h]] = output[[h]][["models"]][[i]]
-+     }
-+     model_list[[i]] = combine_models(mlist = lmodels, check_data = FALSE)
-+     lmodels = list()
-+ }
-> rm(lmodels, output)
-> 
-> saveRDS(list("shifts" = shifts, "avg_weights" = avg_weights),
-+     paste0(data_path, select_estimates, "shifts_no_error.rds"))
-> rm(shifts)
-> slackr::slackr_msg(txt = paste0("LE no error saved shifts: ", Sys.time()))
-> 
-> # create predicitive checks 
-> countries = unique(idat$ctry)
-> preferred_model = which.max(avg_weights)
-> vars = c("ctry", "ctry50", "ctryear", "zyear")
-> 
-> # stakcing
-> pred = rlang::invoke(pp_average, model_list, weights = avg_weights, 
-+     newdata = idat, summary = TRUE, nsamples = 10000)
-> 
-> plots_checks = prediction_check_plots(pred, idat, countries, vars, 
-+     y = "ex_mean", x = "year", 
-+     transform = TRUE, 
-+     country_labels = country_labs)
-> savepdf(paste0(plots_path, select_estimates, "fit_no_error_stacking"))
->     print(plots_checks)
-[[1]]
-
-[[2]]
-
-[[3]]
-
-[[4]]
-
-[[5]]
-
-[[6]]
-
-[[7]]
-
-[[8]]
-
-[[9]]
-
-[[10]]
-
-[[11]]
-
-[[12]]
-
-[[13]]
-
-[[14]]
-
-[[15]]
-
-[[16]]
-
-[[17]]
-
-[[18]]
-
-[[19]]
-
-> dev.off()
-null device 
-          1 
-> file.copy(paste0(plots_path, select_estimates, "fit_no_error_stacking.pdf"), 
-+     manus_plots, recursive = TRUE)    
-[1] TRUE
-> rm(pred, plots_checks)
-> 
-> # preferred model 
-> pred = predict(model_list[[preferred_model]], newdata = idat, summary = TRUE)
-> plots_checks = prediction_check_plots(pred, idat, countries, 
-+     vars, y = "ex_mean", x = "year", 
-+     transform = TRUE, 
-+     country_labels = country_labs)
-> savepdf(paste0(plots_path, select_estimates, "fit_no_error_preferred_model"))
->     print(plots_checks)
-[[1]]
-
-[[2]]
-
-[[3]]
-
-[[4]]
-
-[[5]]
-
-[[6]]
-
-[[7]]
-
-[[8]]
-
-[[9]]
-
-[[10]]
-
-[[11]]
-
-[[12]]
-
-[[13]]
-
-[[14]]
-
-[[15]]
-
-[[16]]
-
-[[17]]
-
-[[18]]
-
-[[19]]
-
-> dev.off()
-null device 
-          1 
-> file.copy(paste0(plots_path, select_estimates, "fit_no_error_preferred_model.pdf"), 
-+     manus_plots, recursive = TRUE)    
-[1] TRUE
-> rm(pred, plots_checks)
-> 
-> # table
-> cnames = paste0("Model ", 1:length(model_list),  " (", round(avg_weights, 2), ")")
-> custom_coeff_map = list(Intercept = "Constant", "log_gdp" = "Log GDP", 
-+     "zyear" = "Year (standardized)")
-> caption = paste0("Models for LE and log GPD no measurement error, stacking weight in parenthesis, ", 
-+     nimputations, " imputations")
-> 
-> texreg(model_list,
-+     caption = caption, 
-+     custom.model.names = cnames, 
-+     custom.coef.map = custom_coeff_map,
-+     label = "tab:ex_no_error",
-+     scalebox = 0.7,
-+     center = TRUE,
-+     dcolumn = TRUE, 
-+     use.packages = FALSE, 
-+     threeparttable = TRUE, 
-+     caption.above = TRUE, 
-+     include.loo.ic = FALSE,
-+     inclue.rsquared = TRUE,
-+     include.waic = FALSE,
-+     include.random = FALSE,
-+     reloo = FALSE,
-+     file = paste0(tables_path, select_estimates, "models_no_error.tex")
-+ )
-> file.copy(paste0(tables_path, select_estimates, "models_no_error.tex"), manus_tables, 
-+         recursive = TRUE)
-[1] TRUE
-> 
-> # send message to slack
-> slackr::slackr_msg(txt = paste0("LE models no error done!: ", Sys.time()))
-> 

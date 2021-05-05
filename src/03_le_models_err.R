@@ -12,9 +12,8 @@ library(data.table)
 library(stringr)
 library(brms)
 
-
 library(doParallel)
-cl = makeCluster(15)
+cl = makeCluster(20, outfile="")
 registerDoParallel(cl)
 seed = 103231
 
@@ -41,9 +40,20 @@ timps = data_list[["imputations"]]
 idat = data_list[["single-imputation"]]
 country_labs = data_list[["ctrylabels"]]
 
-# replicates
+table(idat$ctry)
+
+# check multiple wy values
+length(timps)
+timps[[1]][ctry == 2020 & year == 1950, .(ctry, year, ex_mean, wy_mean, wy)]
+timps[[3]][ctry == 2020 & year == 1950, .(ctry, year, ex_mean, wy_mean, wy)]
+
+# values = NULL
+# for (i in 1:100) {
+#     values = c(values, timps[[1]][ctry == 2020 & year == 1950, wy])
+# }
+# summary(values)# replicates
+
 nsamples = length(timps)
-# nsamples = 2
 K = 10
 print(paste0("Number of replicates: ", nsamples))
 timps = timps[1:nsamples]
@@ -59,6 +69,8 @@ multiResultClass = function(models = NULL, shifts = NULL) {
   return(me)
 }
 
+#Progress combine function
+
 # models 
 output = foreach(i = 1:nsamples) %dopar% {
 
@@ -69,6 +81,7 @@ output = foreach(i = 1:nsamples) %dopar% {
     
     source("src/utils.R")
     
+    print(paste0(":::::::: Running iteration ", i, " ::::::::"))
     models = list()
     dat = timps[[i]]
 
@@ -120,6 +133,7 @@ output = foreach(i = 1:nsamples) %dopar% {
     results$shifts = createShifts(models, newdata, countries = countries, 
         nsamples = 5000, K = K) 
 
+    print(paste0(":::::::: Finished iteration ", i, " ::::::::"))
     return(results)
 }
 
@@ -156,7 +170,7 @@ rm(lmodels, output)
 tabs = list()
 for (i in seq_along(model_list)) {
     print(paste0("Extracting model ", i))
-    tabs[[i]] = extractBRMS(model_list[[1]])
+    tabs[[i]] = extractBRMS(model_list[[1]], r2 = FALSE)
     model_list[[1]] = NULL
 }
 saveRDS(tabs, paste0(data_path, select_estimates, "tab_error.rds"))

@@ -24,7 +24,7 @@ seed = 19380302
 set.seed(seed)
 
 # f (false) or t (true)
-select_estimates = "t"
+select_estimates = "f"
 
 # paths
 plots_path = "output/plots/"

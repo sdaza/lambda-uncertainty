@@ -10,8 +10,6 @@ library(xtable)
 library(stringr)
 source("src/utils.R")
 
-select_estimates = "t"
-
 # paths
 plots_path = "output/plots/"
 tables_path = "output/tables/"
@@ -20,6 +18,7 @@ manus_plots = "manuscript/plots"
 manus_tables  = "manuscript/tables"
 
 # read data
+select_estimates = "t"
 data_list = readRDS(paste0(data_path, select_estimates, "datalist.rds"))
 idat = data_list[["single-imputation"]]
 country_labs = data_list[["ctrylabels"]]
@@ -100,10 +99,8 @@ file.copy(paste0(plots_path, select_estimates, "shifts_1950_comparison.pdf"),
     manus_plots, recursive = TRUE)
 
 
-# all estimates
+# read data all estimates
 select_estimates = "f"
-
-# read data
 data_list = readRDS(paste0(data_path, select_estimates, "datalist.rds"))
 idat = data_list[["single-imputation"]]
 country_labs = data_list[["ctrylabels"]]
@@ -181,4 +178,4 @@ savepdf(paste0(plots_path, select_estimates, "shifts_1950_comparison"))
 dev.off()
 file.copy(paste0(plots_path, select_estimates, "shifts_1950_comparison.pdf"), 
     manus_plots, recursive = TRUE)
-    
+

@@ -3,6 +3,7 @@
 # author: sebastian daza
 ##########################
 
+
 # libraries, functions and options
 library(haven)
 library(data.table)
@@ -32,7 +33,7 @@ manus_plots = "manuscript/plots"
 manus_tables  = "manuscript/tables"
 
 # year dataset
-dat = data.table(read_stata("data/Ex_LA1850-2020_SES_FULL_Mar2-2021.dta"))
+dat = data.table(read_stata("data/Ex_LA1850-2020_SES_FULL_Jan25-2021.dta"))
 setnames(dat, names(dat), tolower(names(dat)))
 
 ctrylabs = attr(dat$ctry, "labels")
@@ -42,11 +43,12 @@ labs = attr(ctrylabs, "names")
 dat[, ctryf := factor(ctry, labels = labs, level = levels)]
 
 # male
-dat = dat[sex == 1 & age == 0 & year >= 1900 & year < 2020]
+dat = dat[sex == 1 & age == 0 & year >= 1900 & year < 2010]
 # remove LE duplicates
 dat[, N := 1:.N, .(ctry, year, ex)]
 dat = dat[N == 1]
 anyDuplicated(dat[, .(ctry, year, ex)])
+nrow(dat)
 
 # country labels
 dat[, ctry := as.numeric(ctry)]
@@ -57,11 +59,23 @@ table(dat$ctryf)
 labels = names(attr(dat$name, "labels"))
 levels = as.numeric((attr(dat$name, "labels")))
 dat[, lnames := factor(name, levels = levels, labels = labels)]
+dat[, lambda := 0][tseries2 == 1, lambda := 1]
+dat[lambda == 1, lambda_ex := ex][, lambda_ex := mean(lambda_ex, na.rm = TRUE), .(ctry, year)]
+dat[, nlambda := 1]
+dat[, nlambda := ifelse(ex > (lambda_ex + 5) | ex < (lambda_ex - 5), 0, nlambda)]
+dat[, selection := 0]
+dat[lambda == 1 | nlambda == 1, selection := 1]
+dat[, N := .N, .(ctry, year)]
+dat[N == 1 & lambda == 1, selection := 0]
 
-dat[, selection := 1]
-dat[year < 1950, selection := 0]
-dat[year < 1950 & piv == 2, selection := 1]
-dat[year < 1950 & name == 1 & (piv == 0 | piv == 1), selection := 1]
+# # selection of estimates?
+# dat[, selection := 0]
+# dat[piv == 2, selection := 1]
+# dat[name == 1 & (piv == 0 | piv == 1), selection := 1]
+# table(dat[selection == 1, .(ctry, year)])
+
+# unique(dat[selection == 0, as.character(lnames)])
+# unique(dat[selection == 1, as.character(lnames)])
 
 countries = unique(dat$ctry)
 dat[, fselection := factor(selection,  labels = c("Removed", "Included"))]
@@ -80,6 +94,8 @@ for (i in countries) {
 dev.off()
 file.copy(paste0(plots_path, "le_estimate_selection.pdf"), manus_plots, 
     recursive = TRUE)
+
+table(dat[selection == 1, year])
 
 # problematics rows 
 # dat[, selection := 1]
@@ -124,7 +140,6 @@ sdat = dat[, .(
     urban = getMin(urban),
     pop = getMin(pop)),
     .(ctry, ctryf, year)]
-
 sdat[, wy_mean := transWeibull(ex_mean, max_ex)]
 
 sampex = list()

@@ -149,7 +149,7 @@ custom_coeff_map = list(
     "Rho[1,2]" = "cor(Intercept, GDP)"
 )
 
-caption = paste0("Models for LE and GPD", 
+caption = paste0("Models for LE and GPD ", 
     100, " replicates")
 
 groups = list("Fixed effects" = 1:7, "Random effects" = 8:10)

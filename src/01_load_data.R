@@ -10,20 +10,19 @@ library(data.table)
 library(stringr)
 
 library(texreg)
-library(mice)
-library(miceadds)
-
 library(ggplot2)
-library(patchwork)
+# library(naniar)
+library(imputeTS)
 
 nsamples = 100
 seed = 19380302
 set.seed(seed)
 
 source("src/utils.R")
+le_estimate_limit = 10/2
 
 # f (false) or t (true)
-select_estimates = "f"
+select_estimates = "t"
 
 # paths
 plots_path = "output/plots/"
@@ -42,52 +41,82 @@ levels = as.numeric(ctrylabs)
 labs = attr(ctrylabs, "names")
 dat[, ctryf := factor(ctry, labels = labs, level = levels)]
 
-# male
-dat = dat[sex == 1 & age == 0 & year >= 1900 & year < 2010]
-# remove LE duplicates
-dat[, N := 1:.N, .(ctry, year, ex)]
-dat = dat[N == 1]
-anyDuplicated(dat[, .(ctry, year, ex)])
-nrow(dat)
+dat[, qyear := ifelse(as.numeric(substr(as.character(year), 4, 4)) < 5, 
+    year - as.numeric(substr(as.character(year), 4, 4)),
+    year - as.numeric(substr(as.character(year), 4, 4)) + 5)]
+
+# average males and females
+dat = dat[age == 0 & year >= 1900 & year < 2010]
+ex = dat[, .(ex = mean(ex)), .(ctry, ctryf, tseries2, year, name)]
+ex = ex[, N := .N, .(ctry, year, ex)][N == 1]
+
+# recode year
+covs  = copy(dat[, N := 1:.N, .(ctry, year)][N == 1])
+covs[year < 1950, gyear := "1950"]
+covs[year >= 1950 & year < 1970, gyear := "1950-1969"]
+covs[year >= 1970 & year < 1990, gyear := "1970-1989"]
+covs[year >= 1990, gyear := "1990"]
+covs[, ctryear := factor(paste0(ctry,".", gyear))]
+covs[, ctryearg := .GRP, ctryear]
+covs[, year1950 := factor(ifelse(year < 1950, "1950", "1950+"))]
+covs[, ctry50 := paste0(ctry, ".", year1950)]
+
+# impute variables (interpolation)
+setorder(covs, ctry, year)
+ovars = c("gdp_pc", "urban", "elec", "lit", "water", "sewage", "us_aid_pc")
+covs[, paste0("i", ovars) := lapply(.SD, na_interpolation, option = "stine"), 
+    by = ctry, .SDcols = ovars]
+covs[, log_gdp_pc := log(igdp_pc)]
+
+covs[, paste0("zi", ovars) := lapply(.SD, scale), 
+    .SDcols = paste0("i", ovars)]
+covs[, zpop := scale(pop)]
+covs[, zyear := scale(year)]
+covs[, zinfrastructure := apply(.SD, 1, mean), .SDcols = c("ziwater", "zisewage", 
+    "zielec")]
+
+vars = c("ctry", "year", "qyear", "gyear", "ctryear", "ctry50", "ctryearg", 
+    "year1950", "zpop", "zyear", paste0("zi", ovars), "zinfrastructure", 
+    "log_gdp_pc", "igd_pc")
+
+covs = covs[, ..vars]
+covs[, ctry := as.numeric(ctry)]
+
+# savepdf(paste0(plots_path, "missing_pattern"))
+# gg_miss_fct(covs[, c("year", ovars), with = FALSE], year)
+# dev.off()
+# file.copy(paste0(plots_path, "missing_pattern.pdf"), manus_plots, 
+#     recursive = TRUE)
+countmis(covs)
 
 # country labels
-dat[, ctry := as.numeric(ctry)]
-dat[, ctryf := droplevels(ctryf)]
-table(dat$ctry)
-table(dat$ctryf)
+ex[, ctry := as.numeric(ctry)]
+ex[, ctryf := droplevels(ctryf)]
 
-labels = names(attr(dat$name, "labels"))
-levels = as.numeric((attr(dat$name, "labels")))
-dat[, lnames := factor(name, levels = levels, labels = labels)]
-dat[, lambda := 0][tseries2 == 1, lambda := 1]
-dat[lambda == 1, lambda_ex := ex][, lambda_ex := mean(lambda_ex, na.rm = TRUE), .(ctry, year)]
-dat[, nlambda := 1]
-dat[, nlambda := ifelse(ex > (lambda_ex + 5) | ex < (lambda_ex - 5), 0, nlambda)]
-dat[, selection := 0]
-dat[lambda == 1 | nlambda == 1, selection := 1]
-dat[, N := .N, .(ctry, year)]
-dat[N == 1 & lambda == 1, selection := 0]
 
-# # selection of estimates?
-# dat[, selection := 0]
-# dat[piv == 2, selection := 1]
-# dat[name == 1 & (piv == 0 | piv == 1), selection := 1]
-# table(dat[selection == 1, .(ctry, year)])
+labels = names(attr(ex$name, "labels"))
+levels = as.numeric((attr(ex$name, "labels")))
+ex[, lnames := factor(name, levels = levels, labels = labels)]
+ex[, lambda := 0][tseries2 == 1, lambda := 1]
+ex[lambda == 1, lambda_ex := ex][, lambda_ex := mean(lambda_ex, na.rm = TRUE), .(ctry, year)]
+ex[, nlambda := 1]
+ex[, nlambda := ifelse(ex >= (lambda_ex + le_estimate_limit) | ex <= (lambda_ex - le_estimate_limit), 0, nlambda)]
+ex[, selection := 0]
+ex[lambda == 1 | nlambda == 1, selection := 1]
+ex[, N := .N, .(ctry, year)]
+ex[N == 1 & lambda == 1, selection := 0]
 
-# unique(dat[selection == 0, as.character(lnames)])
-# unique(dat[selection == 1, as.character(lnames)])
-
+# plot with included values
 countries = unique(dat$ctry)
-dat[, fselection := factor(selection,  labels = c("Removed", "Included"))]
-
+ex[, fselection := factor(selection,  labels = c("Removed", "Included"))]
 savepdf(paste0(plots_path, "le_estimate_selection"))
 for (i in countries) {
     print(
-        ggplot(dat[ctry == i], aes(year, ex, color = fselection)) +
+        ggplot(ex[ctry == i], aes(year, ex, color = fselection)) +
         geom_jitter(size = 0.5) +
         theme_minimal() +
         labs(title = lab_list[[as.character(i)]], 
-            x = "\nYear", y = "Life expectanty at age 0\n") +
+            x = "\nYear", y = "Life expectancy at age 0\n") +
         theme(legend.position = "top", legend.title=element_blank())
     )
 }
@@ -95,176 +124,141 @@ dev.off()
 file.copy(paste0(plots_path, "le_estimate_selection.pdf"), manus_plots, 
     recursive = TRUE)
 
-table(dat[selection == 1, year])
-
-# problematics rows 
-# dat[, selection := 1]
-# dat[ctry == 2340 & year == 1936, selection := 0]
-
-# selection cases
+# selection of estimates?
 if (select_estimates == "t") {
-    dat = data.table::copy(dat[selection == 1])
+    ex = data.table::copy(ex[selection == 1])
 } 
 
-dat[, N := .N, .(ctry, year)]
-table(dat$N)
-anyDuplicated(dat[, .(ctry, year, ex)])
+ex[, N := .N, .(ctry, year)]
+table(ex$N)
+anyDuplicated(ex[, .(ctry, year, ex)])
 
-# # testing cases
-# test = dat[, .(.N, sd = sd(ex)) ,.(ctry, year)]
-# test[year < 1950 & ctry == 2020, .(ctry, year, sd, N)]
-# test[year < 1950 & ctry == 2460, .(ctry, year, sd, N)]
-# test[year < 1950 & ctry == 2060, .(ctry, year, sd, N)]
-# test[year < 1950 & ctry == 2130, .(ctry, year, sd, N)]
-# test[year < 1950 & ctry == 2280, .(ctry, year, sd, N)]
-
-# # testing values
-# test = dat[ctry == 2020]
-# test[year == 1904, .(ctry, year, ex, tseries1)]
-# mean(test[year == 1904, .(ctry, year, ex, tseries1)]$ex)
-
-# create variables
 # max ex = 78.6
-dat[, max_ex := max(ex)]
+ex_max = max(ex$ex)
+ex[, max_ex := max(ex)]
+ex[, wy := transWeibull(ex, max_ex)]
+ex[, ex_mean := mean(ex), by = .(ctry, year)]
+ex[, wy_mean := transWeibull(ex_mean, max_ex)]
 
-# dat[, ex_mean := mean(ex), by = .(ctry, year)] # to recover values later
-# dat[, wy_mean := mean(wy), by = .(ctry, year)] # to recover values later
+ex = merge(ex, covs, by = c("ctry", "year"), x.all = TRUE)
 
-# estimate standard deviation based on estimate
-sdat = dat[, .(
-    max_ex = max(max_ex),
-    ex_mean = mean(ex),
-    ex_sd = sd(ex),
-    N = .N,
-    gdp = getMin(gdp_pc),
-    urban = getMin(urban),
-    pop = getMin(pop)),
-    .(ctry, ctryf, year)]
-sdat[, wy_mean := transWeibull(ex_mean, max_ex)]
-
-sampex = list()
+samples = list()
 for (i in 1:nsamples)  {
-    sampex[[i]] = dat[, .(ex = getSample(ex)), .(ctry, year, max_ex)][, 
-        wy := transWeibull(ex, max_ex)][, .imp := i]
+    samples[[i]] = ex[, .SD[sample(.N, min(1, .N))], .(ctry, year)]
 }
 
-# log gdp
-sdat[, log_gdp := scale(log(gdp), scale = FALSE)]
-sdat[, zpop := scale(pop)]
-sdat[, zyear := scale(year)]
-
-# recode year
-sdat[year < 1950, gyear := "1950"]
-sdat[year >= 1950 & year < 1970, gyear := "1950-1969"]
-sdat[year >= 1970 & year < 1990, gyear := "1970-1989"]
-sdat[year >= 1990, gyear := "1990"]
-sdat[, ctryear := paste0(ctry,".", gyear)]
-sdat[, ctryearg := .GRP, ctryear]
-
-# no gdp records before 1950 for country 2170
-sdat[ctry == 2170 & ctryearg == 29, ctryearg := 30]
-sdat[, year1950 := ifelse(year < 1950, "1950", "1950+")]
-
-# flag missing records
-sdat[, gdp_missing := ifelse(is.na(gdp), "missing", "observed")]
-sdat[, sd_missing := ifelse(is.na(ex_sd), "missing", "observed")]
-
-sdat[, max_ex := NULL]
-
-# correlations
-cor(sdat[, .(ex_mean, ex_sd, log_gdp)])
-
-# missing data```
-countmis(sdat)
-
-# impute some missing data
-
-# year data
-setorder(sdat, ctry, year)
-
-imp = mice(sdat, maxit = 0)
-meth = imp$method
-meth[] = ""
-pred = imp$pred
-pred[,] = 0
-
-imp$loggedEvents
-meth["zpop"] = "2l.pmm"
-meth["log_gdp"] = "2l.norm"
-meth["ex_sd"] = "2l.norm"
-
-pred["zpop", c("zyear", "log_gdp", "ex_mean")] = 1
-pred["zpop", c("ctryearg")] = -2
-
-pred["ex_sd", c("zyear", "log_gdp", "ex_mean", "zpop")] = 1
-pred["ex_sd", c("zyear")] = 2
-pred["ex_sd", c("ctryearg")] = -2
-
-pred["log_gdp", c("zyear", "ex_mean", "ex_sd", "zpop")] = 1
-pred["log_gdp", c("zyear")] = 2
-pred["log_gdp", c("ctryearg")] = -2
-
-pred["log_gdp", ]
-
-# negative sd values
-summary(sdat$ex_sd)
-post = imp$post
-post["ex_sd"] = "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(0.001, 17.0))"
-
-# 100 datasets and 10 iterations
-# using average LE values
-imps = parmice(sdat,
-    m = nsamples,
-    method = meth,
-    post = post,
-    maxit = 10,
-    predictorMatrix = pred, 
-    n.core = 10, 
-    n.imp.core = 10,
-    cluster.seed = seed)
-
-# create imputation plots
-savepdf(paste0(plots_path, select_estimates, "mice"))
-    print(plot(imps))
-    print(densityplot(imps, ~ ex_sd))
-    print(densityplot(imps, ~ log_gdp))
-    print(densityplot(imps, ~ zpop))
-dev.off()
-file.copy(paste0(plots_path, select_estimates, "mice.pdf"), manus_plots, 
-    recursive = TRUE)
-
-# combine samples of ex with imputed values
-cimps = data.table(complete(imps, action = "long", include = TRUE))
-fimps = merge(cimps, rbindlist(sampex), all.x = TRUE, by = c("ctry", "year", ".imp"))
-test_list = list()
-for (i in 1:nsamples) {
-    test_list[[i]] = fimps[.imp == i][, ctry50 := paste0(ctry, ".", year1950)]
-}
-timps = test_list
+# missing data
+countmis(samples[[2]])
 
 # random imputation
-idat = timps[[sample(1:nsamples, 1)]]
+idat = samples[[sample(1:nsamples, 1)]]
 names(idat)
 
-# GDP checks
-countries = unique(sdat[, ctry])
-savepdf(paste0(plots_path, select_estimates, "imputation_check_gdp"))
-for (i in countries) {
-    print(ggplot(data = idat[ctry == i, .(log_gdp, year, gdp_missing)],
-        aes(year, log_gdp, color = gdp_missing)) +
-        geom_point() +
-        labs(title = lab_list[[as.character(i)]], 
-        x = "\nYear", y = "Log GDP\n", color = NULL) +
-        theme_minimal() + 
-        theme(legend.position = "top", legend.title=element_blank())
-    ) 
-}
+# data for shifts
+lctryear = levels(covs$ctryear)
+vars = c(vars, c("ctry", "ctry50", "ctryear", "zyear", "year1950"))
+countries = unique(covs$ctry)
+years = c(1950, 1970, 1990)
+cyears = list(c("1950", "1950-1969"), c("1950-1969", "1970-1989"), 
+    c("1970-1989", "1990"))
+dyears = list(c("1950", "1950+"), c("1950", "1950+"), 
+    c("1950", "1950+"))
+newdata = createComparisonData(covs, countries, 
+    years, cyears, dyears)
+newdata[, ctryear := factor(ctryear, levels = lctryear)]
+newdata[, ctryearg := as.numeric(ctryear)]
+
+# define models (formulas, rethinking)
+formulas = list()
+
+formulas[[1]] = alist(
+    wy ~ normal(mu, sigma),
+    mu <- a_cy[ctryearg] + b_gdp * zigdp_pc,
+    a_cy[ctryearg] ~ normal(a, sigma_cy),
+    a ~ normal(0, 1),
+    # c(sigma_cy, sigma) ~ half_normal(0,1),
+    c(sigma_cy, sigma) ~ exponential(1),
+    b_gdp ~ normal(0, 0.5), 
+    save> pred <- a_cy[ctryearg] + b_gdp * zigdp_pc
+)
+
+formulas[[2]] = alist(
+    wy ~ normal(mu, sigma),
+    mu <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc,
+    c(a_cy, b_gdp_cy)[ctryearg] ~ multi_normal(c(a, b_gdp), Rho, sigma_cy),
+    a ~ normal(0, 2),
+    b_gdp ~ normal(0, 1),
+    c(sigma, sigma_cy) ~ exponential(1),
+    Rho ~ lkj_corr(2),
+    save> pred <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc
+)
+
+formulas[[3]] = alist(
+    wy ~ normal(mu, sigma),
+    mu <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc + b_year * zyear,
+    c(a_cy, b_gdp_cy)[ctryearg] ~ multi_normal(c(a, b_gdp), Rho, sigma_cy),
+    a ~ normal(0, 1),
+    c(b_gdp, b_year) ~ normal(0, 0.5),
+    c(sigma, sigma_cy) ~ exponential(1),
+    Rho ~ lkj_corr(2),
+    save> pred <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc + b_year * zyear
+)
+
+
+formulas[[4]] = alist(
+    wy ~ normal(mu, sigma),
+    mu <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc + b_infra * zinfrastructure + 
+        b_pop * zpop + b_lit * zilit + b_us * zius_aid_pc,
+    c(a_cy, b_gdp_cy)[ctryearg] ~ multi_normal(c(a, b_gdp), Rho, sigma_cy),
+    a ~ normal(0, 1),
+    c(b_gdp, b_infra, b_lit, b_pop, b_us) ~ normal(0, 0.5),
+    c(sigma_cy, sigma) ~ exponential(1),
+    Rho ~ lkj_corr(2),
+    save> pred <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc + b_infra * zinfrastructure + 
+        b_pop * zpop + b_lit * zilit + b_us * zius_aid_pc
+)
+
+formulas[[5]] = alist(
+    wy ~ normal(mu, sigma),
+    mu <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc + b_infra * zinfrastructure + 
+        b_pop * zpop + b_lit * zilit + b_us * zius_aid_pc + b_year * zyear,
+    c(a_cy, b_gdp_cy)[ctryearg] ~ multi_normal(c(a, b_gdp), Rho, sigma_cy),
+    a ~ normal(0, 1),
+    c(b_gdp, b_infra, b_lit, b_pop, b_us, b_year) ~ normal(0, 0.5),
+    c(sigma_cy, sigma) ~ exponential(1),
+    Rho ~ lkj_corr(2),
+    save> pred <- a_cy[ctryearg] + b_gdp_cy[ctryearg] * zigdp_pc + b_infra * zinfrastructure + 
+        b_pop * zpop + b_lit * zilit + b_us * zius_aid_pc + b_year * zyear
+)
+
+# correlation between indicators
+vars = c("zpop", "zyear", "zigdp_pc", "ziurban", "zielec", "zilit", "ziwater",
+     "zisewage", "zius_aid_pc", "zinfrastructure")
+r = cor(idat[, ..vars])
+savepdf(paste0(plots_path, select_estimates, "correlation_imputed_covs"))
+ggcorrplot::ggcorrplot(r, 
+    hc.order = TRUE, 
+    type = "lower",
+    lab = TRUE)
 dev.off()
-file.copy(paste0(plots_path, select_estimates, "imputation_check_gdp.pdf"), 
-    manus_plots,, recursive = TRUE)
+file.copy(paste0(plots_path, select_estimates, "correlation_imputed_covs.pdf"), 
+    manus_plots, recursive = TRUE)    
+
+# all data points
+savepdf(paste0(plots_path, select_estimates, "le_gdp_data"), 24, 16)
+ggplot(idat, aes(zigdp_pc, wy_mean, color= ctryf, shape = gyear))  +
+ geom_point(size = 1)  +  
+ theme_minimal() +
+ theme(legend.position="right", 
+        legend.title = element_blank()) + 
+labs(x = "\nGDP (z-score)", y = "Transformed e0\n")
+dev.off()
+file.copy(paste0(plots_path, select_estimates, "le_gdp_data.pdf"), 
+    manus_plots, recursive = TRUE)
 
 # create data list
-data_list = list("single-imputation" = idat, "aggregate-data"  = sdat, 
-    "raw-data" = dat,  "imputations" = timps, "ctrylabels" = lab_list)
-
+data_list = list("single-imputation" = idat, 
+    "raw-data" = dat,  "imputations" = samples, "ctrylabels" = lab_list,
+    "covs" = covs, ex_max = ex_max, newdata = newdata, formulas = formulas)
+    
 saveRDS(data_list, paste0(data_path, select_estimates, "datalist.rds"))

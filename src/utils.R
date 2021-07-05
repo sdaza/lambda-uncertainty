@@ -4,14 +4,19 @@
 ########################
 
 
-library(texreg)
-
+# decimals
+specify_decimal = function(x, k) trimws(format(round(x, k), nsmall=k))
 
 # get original values from weibull transformation
 transWeibull = function(x, maxvalue = 100) {
     y = x / (maxvalue + 1.05)
     y = log( -log(1-y))
     return(y)
+}
+
+
+recoverZ = function(x, vmean, vsd) {
+    return((x * vsd) + vmean)
 }
 
 
@@ -22,10 +27,11 @@ recoverWeibull = function(x, maxvalue = 100) {
 
 
 getSample = function(x) {
-    if (length(x) > 1) {
+    x = na.omit(as.numeric(x))
+    if (length(x) > 0) {
         s = sample(x, 1)
     } else {
-        s = x
+        s = as.numeric(NA)
     }
     return(s)
 }
@@ -118,35 +124,28 @@ savepdf = function(file, width = 16, height = 10, mgp = c(2.2,0.45,0),
 }
 
 
-prediction_check_plots = function(posterior, data, countries, variables, y, x, 
-    maxy = 2, transform = FALSE, country_labels) {
-
-    posterior = data.table(posterior)
-    if (transform) {
-        vars = c('Estimate', 'Q2.5', 'Q97.5')
-        posterior[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
-
-    }
-    variables = unique(c(variables, y, x))
-    pred = cbind(data[, ..variables], posterior)
-    setnames(pred, c('Estimate', 'Q2.5', 'Q97.5'), c('m', 'lo', 'hi'))
-
-    # setup limitis of plots
-    wsd = sd(data[[y]])
-    max_ex = max(data[, y, with = FALSE]) + maxy * wsd
-    min_ex = min(data[, y, with = FALSE]) - maxy * wsd
-    max_year = max(data[, x, with = FALSE])
-    min_year = min(data[, x, with = FALSE])
+predictionPlots = function(pred, x = "year", y = "ex_mean", country_labels, 
+    xlab = "Year", ylab = "e0") {
+    
+    countries = unique(pred$ctry)
+    wsd = sd(pred[[y]])/ max(pred[, y, with = FALSE]) 
+    max_y = max(pred[, y, with = FALSE]) + max(pred[, y, with = FALSE]) * wsd
+    min_y = min(pred[, y, with = FALSE]) - min(pred[, y, with = FALSE]) * wsd
+    max_x = max(pred[, x, with = FALSE])
+    min_x = min(pred[, x, with = FALSE])
 
     plots = list()
+    
     for (c in seq_along(countries)) {
         plots[[c]] = ggplot(pred[ctry == countries[c]], aes_string(x=x, y=y))+
             geom_line(aes(y = m), color='#2b8cbe', size = 0.4)  +
             geom_ribbon(aes(ymin = lo, ymax = hi), fill = '#a6bddb', alpha=0.2) +
             geom_point(size=0.3, color='#e34a33', alpha=0.4) +
-            labs(title = country_labels[[as.character(countries[c])]]) +
-            ylim(min_ex, max_ex) +
-            xlim(min_year, max_year) +
+            labs(title = country_labels[[as.character(countries[c])]], 
+                x = ifelse(is.null(xlab), x, xlab),
+                y = ifelse(is.null(ylab), y, ylab)) +
+            ylim(min_y, max_y) +
+            xlim(min_x, max_x) +
             theme_minimal() +
             geom_vline(xintercept = 1950, size=0.5, color='red', 
                 alpha=0.8, linetype = 'dotted') +
@@ -159,167 +158,221 @@ prediction_check_plots = function(posterior, data, countries, variables, y, x,
 }
 
 
-# shift functions
-# create data for comparison (predictive values)
+predictData = function(model, ex_max = 100, n = 1000) {
+    dt = recoverWeibull(rethinking::sim(model), ex_max)
+    return(data.table(dt))
+}
+
+
 createComparisonData = function(data, countries, years, cyears, dyears) {
     datalist = list()
+
     for (i in seq_along(countries)) {
         for (h in seq_along(cyears)) {
             values = paste0(countries[i], ".", cyears[[h]])
-            if (sum(values %in% unique(idat$ctryear)) < 2 ) next 
-            a = data[ctry == countries[i] & year == years[h] & 
-                gyear == cyears[[h]][2]]
-            b = copy(a)
-            b[, ctryear := paste0(countries[i], ".", cyears[[h]][1])]
-            b[, ctry50 := paste0(countries[i], ".", dyears[[h]][1])]
-            datalist[[paste0(i, ".", h)]] = rbind(a, b)
+            if (sum(values %in% unique(data$ctryear)) < 2 ) { next }
+            else { 
+                a = data[ctry == countries[i] & year == years[h]]
+                b = copy(a)
+                b[, qyear := years[[h]] - 5]
+                b[, ctryear := paste0(countries[i], ".", cyears[[h]][1])]
+                b[, ctry50 := paste0(countries[i], ".", dyears[[h]][1])]
+                b[, year1950 := dyears[[h]][1]]
+                datalist[[paste0(i, ".", h)]] = rbind(a, b)
+                rm(a, b)
+            }
         }
     }
-    return(rbindlist(datalist, idcol = "comp"))
+    df = rbindlist(datalist, idcol = "comp")
+    df[, ctryearg := as.numeric(ctryear)]
+    return(df)
 }
 
 
-computeShift = function(predictions, countries) {
+iShift = function(predictions, countries) {
     output = list()
     index = c(1, 2)    
     for (i in seq_along(countries)) {
-        output[[as.character(countries[i])]] = predictions[[paste0("V", index[1])]] - predictions[[paste0("V", index[2])]]
+        output[[as.character(countries[i])]] = 
+        predictions[[paste0("V", index[1])]] - predictions[[paste0("V", index[2])]]
         index = index + 2
     }
-    return(output)
+    return(setDT(output))
+}   
+
+
+computeShift = function(model, newdata, ex_max, n = 1000) {
+    years = unique(newdata$year)
+    mshifts = list()    
+    for (i in years) {
+        temp = data.table::copy(newdata[year == i])
+        pred = data.table(recoverWeibull(
+            rethinking::link(model, data = temp, n = n), ex_max))
+        countries = unique(temp$ctry)
+        shifts = iShift(pred, countries)
+        mshifts[[as.character(i)]] = shifts[, year := i]
+    }
+    shifts = rbindlist(mshifts, fill = TRUE)
+    shifts = melt(shifts, id.vars = "year", 
+        variable.name = "ctry", 
+        value.name = "shift")
+    shifts = na.omit(shifts, cols="shift")
+    return(shifts)
 }
 
 
-createShifts = function(models, newdata, nsamples = 1000, countries = NULL, 
-    transform = TRUE, K = 10) {
-    
-    lpd = NULL
-    for (h in seq_along(models)) {
-        print(paste0("::::::::: model ", h, " :::::::::"))
-        cv = suppressWarnings(suppressMessages(suppressPackageStartupMessages(
-                kfold(models[[h]], K = K, chains = 1, cores = 2))))
-            lpd = cbind(lpd, cv$pointwise[, "elpd_kfold"])
-    }
-    
-    weights= as.vector(stacking_weights(lpd))
-    pred = rlang::invoke(pp_average, models, weights = weights, 
-            newdata = newdata, 
-            summary = FALSE, nsamples = nsamples)
-    pred = data.table(pred)
-    if (transform) {
-        vars = names(pred)
-        pred[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
-    }
-    shifts = setDT(computeShift(pred, countries))
-    return(list("values" = shifts, "weights" = weights)) 
+plotShifts = function(shifts, country_labs, title = "", xlab = "Shift", ylab = "Country") {
+    xmin = min(shifts$shift, na.rm = TRUE) - 1.5
+    xmax = max(shifts$shift, na.rm = TRUE) + 1.5
+    v = unlist(country_labs)
+    shifts[, lctry := as.factor(v[as.character(ctry)])]
+    shifts[, year := factor(year)]
+    shifts[, ctry := factor(ctry)]
+    plot = ggplot2::ggplot(shifts, aes(y = lctry)) +
+        ggridges::geom_density_ridges(aes(x = shift, fill = year), 
+            alpha = .45, color = "white", from = xmin, to = xmax, scale = 1) +
+        labs(x = xlab, y = ylab, title = title) +
+        scale_y_discrete(expand = c(0, 0)) +
+        scale_x_continuous(expand = c(0, 0)) +
+        ggridges::scale_fill_cyclical(
+            values = c("#EC7063", "#F7DC6F", "#229954"), guide = "legend") +
+        coord_cartesian(clip = "off") +
+        ggridges::theme_ridges(grid = TRUE) +
+        theme(legend.position="top", 
+        legend.title = element_blank())
+    return(plot)
 }
 
 
+multiResultClass = function(models = NULL, shifts = NULL, predictions = NULL, 
+    r2 = NULL, rhat = NULL, neff = NULL) {
+  me = list(models = models, shifts = shifts, predictions = predictions, 
+    r2 = r2, rhat = rhat, neff = neff)
+  class(me) = append(class(me), "multiResultClass")
+  return(me)
+}
 
-# createShifts = function(model_replicates, newdata, nsamples = 1000, countries = NULL, 
-#     transform = TRUE) {
+
+runModel = function(flist, samples, chains = 1, iterations = 2000, 
+    n = 100, ex_max = 100, newdata, clusters = 2) {
+
+    nsamples = length(samples)
+
+    cl = makeCluster(clusters)
+    registerDoParallel(cl)
     
-#     models = length(model_replicates)
-#     replicates = length(model_replicates[[1]])
-
-#     # list to save output
-#     weight_list = list()
-#     shift_estimates = list()
+    output = foreach(i = 1:nsamples) %dopar% {
     
-#     for (i in 1:replicates) {
+        library(data.table)
+        library(rethinking)
+        source("src/utils.R")
+        results = multiResultClass()
 
-#         print(paste0("::::::::: replicate ", i, " :::::::::"))
+        dat = samples[[i]]
+        mdata = list(
+                wy = dat$wy, 
+                zyear = dat$zyear,
+                zinfrastructure = dat$zinfrastructure, 
+                zpop= dat$zpop, 
+                zilit = dat$zilit, 
+                zius_aid_pc = dat$zius_aid_pc, 
+                zigdp_pc = dat$zigdp_pc, 
+                ctryearg = dat$ctryearg
+        )
 
-#         cv_list = list()
-#         lpd = NULL
-        
-#         # temporary model list
-#         rmodels = list()
+        model = ulam(
+            flist, 
+            data = mdata, chains = chains, cores = 1, 
+            iter = iterations, chain_id = i
+        )
 
-#         for (h in 1:models) {
-#             print(paste0("::::::::: model ", h, " :::::::::"))
-#             cv_list[[h]] = suppressWarnings(suppressMessages(suppressPackageStartupMessages(
-#                 kfold(model_replicates[[h]][[i]], K = 10, chains = 1))))
-#             lpd = cbind(lpd, cv_list[[h]]$pointwise[, "elpd_kfold"])
+        check = as.matrix(rethinking::precis(model, depth = 3))
+        results$rhat = sum(na.omit(check[, "Rhat4"]) > 1.01)
+        results$neff = sum(na.omit(check[, "n_eff"]) < 100)
+        rm(check)
 
-#             # cv_list[[h]] = brms::loo(rmodels[[h]], moment_match = TRUE, reloo = FALSE, 
-#                 # cores = 20, reloo_args = list(chains = 1))
-#             # lpd = cbind(lpd, cv_list[[h]]$pointwise[, "elpd_loo"])
-#         }
-
-
-#         weight_list[[i]]= as.vector(stacking_weights(lpd))
-#         ndata = newdata[[i]]
-#         pred = rlang::invoke(pp_average, 
-#             getModels(model_replicates, models, i), weights = weight_list[[i]], newdata = ndata, 
-#             summary = FALSE, nsamples = nsamples)
-#         pred = data.table(pred)
-
-#         if (transform) {
-#             vars = names(pred)
-#             pred[, (vars) := lapply(.SD, recoverWeibull, maxvalue = 78.6), .SDcols = vars]
-#         }
-
-#         shift_estimates[[i]] = setDT(computeShift(pred, countries))
-
-#     }
-#     shifts = rbindlist(shift_estimates, idcol = "replicate")
-#     avg_weights = apply(do.call(rbind, weight_list), 2, mean)
-    
-#     return(list("shifts" = shifts, "weight_list" = weight_list, "avg_weights" = avg_weights))
-       
-# }
-
-
-# imputation function
-parmice = function(data, n.core = detectCores() - 1, n.imp.core = 2,
-    seed = NULL, m = NULL, ...) {
-        
-    suppressMessages(require(parallel))
-    cl = makeCluster(n.core, ...)
-    clusterExport(cl, varlist = "data", envir = environment())
-    clusterEvalQ(cl, library(miceadds)) # to use miceadds!
-    if (!is.null(seed)) {
-        clusterSetRNGStream(cl, seed)
+        results$models = model@stanfit
+        results$predictions = predictData(model, ex_max = ex_max, n = 100)
+        results$shifts = computeShift(model, newdata, ex_max, n = 100)
+        fit_ss = rstan::extract(model@stanfit, pars = c("pred", "sigma"))
+        results$r2 = bayes_R2(fit_ss$pred, fit_ss$sigma)
+        rm(fit_ss, model)
+        return(results)
     }
-    if (!is.null(m)) {
-        n.imp.core = ceiling(m / n.core)
-    }
-    imps = parLapply(cl = cl, X = 1:n.core, fun = function(i) {
-        mice(data, print = FALSE, m = n.imp.core, ...)
-        }
-    )
+
     stopCluster(cl)
-    imp = imps[[1]]
-    if (length(imps) > 1) {
-        for (i in 2:length(imps)) {
-            imp = ibind(imp, imps[[i]])
-        }
-    } 
-    return(imp)
+    
+    # extract results
+    models = list()
+    predictions = list()
+    shifts = list()
+    r2 = NULL
+    rhat = NULL
+    neff = NULL
+    for (i in seq_along(output)) {
+        shifts[[i]] = output[[i]][["shifts"]]
+        models[[i]] = output[[i]][["models"]]
+        predictions[[i]] = output[[i]][["predictions"]]
+        r2 = c(r2, output[[i]][["r2"]])
+        rhat = c(rhat, output[[i]][["rhat"]])
+        neff = c(neff, output[[i]][["neff"]])
+    }
+    
+    predictions = rbindlist(predictions)
+    pred = samples[[1]]
+    pred[, m := apply(predictions, 2, median)]
+    pred[, lo := apply(predictions, 2, quantile, probs = 0.025)]
+    pred[, hi := apply(predictions, 2, quantile, probs = 0.975)]
+    rm(predictions)
+    
+    return(
+        list(
+            "fit" = sflist2stanfit(models), 
+            "shifts" = rbindlist(shifts), 
+            "predictions" = pred,
+            "r2" = median(r2),
+            "rhat" = sum(rhat), 
+            "neff" = sum(neff)
+        )
+    )
 }
 
 
-extractBRMS = function(model, r2 = TRUE) {
-    sf = fixef(model)
-    coefnames = rownames(sf)
-    coefs = sf[, 1]
-    se = sf[, 2]
-    ci.low = sf[, 3]
-    ci.up = sf[, 4]
+bayes_R2 = function(mu, sigma) {
+    mu = transpose(data.table(mu))
+    var_mu = as.vector(t(mu[, lapply(.SD, var)]))
+    sigma2 = sigma^2
+    r2 = var_mu / (var_mu + sigma2)
+    mean(r2)
+}
+
+
+extractStan = function(model, r2 = TRUE, n = NULL) {
+
+    t = as.matrix(rethinking::precis(model, depth = 3, prob = 0.95))
+    t  = t[-grep("pred|lp__", rownames(t)),] 
+    coefnames = rownames(t)
+    coefs = t[, 1]
+    se = t[, 2]
+    ci.low = t[, 3]
+    ci.up = t[, 4]
 
     gof = numeric()
     gof.names = character()
     gof.decimal = logical()
 
-    n = stats::nobs(model)
-    gof = c(gof, n)
-    gof.names = c(gof.names, "Num. obs.")
-    gof.decimal = c(gof.decimal, FALSE)
+    if (!is.null(n)) {
+        gof = c(gof, n)
+        gof.names = c(gof.names, "Num. obs.")
+        gof.decimal = c(gof.decimal, FALSE)
+    }
 
-    if (r2) {
-        rs = brms::bayes_R2(model)[1]
-        gof = c(gof, rs)
+    if (!is.null(r2)) {
+        # print(":::::::: extracting pred and sigma")
+        # fit_ss = rstan::extract(model, permuted = TRUE, pars = c("pred", "sigma"))
+        # print(":::::::: computing R2")
+        # rs = bayes_R2(fit_ss$pred, fit_ss$sigma)
+        gof = c(gof, r2)
         gof.names = c(gof.names, "R$^2$")
         gof.decimal = c(gof.decimal, TRUE)
     }

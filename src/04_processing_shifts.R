@@ -23,10 +23,10 @@ data_list = readRDS(paste0(data_path, select_estimates, "datalist.rds"))
 idat = data_list[["single-imputation"]]
 country_labs = data_list[["ctrylabels"]]
 
-shifte = readRDS(paste0(data_path, select_estimates, "shifts_error.rds"))[[1]][,
+shifte = readRDS(paste0(data_path, select_estimates, "shifts_stacking_error.rds"))[[1]][,
     error := "Bootstrap"]
-shiftne = readRDS(paste0(data_path, select_estimates, "shifts_no_error.rds"))[[1]][,
-    error := "Mean"]
+shiftne = readRDS(paste0(data_path, select_estimates, "shifts_stacking_no_error.rds"))[[1]][,
+    error := "Average LE"]
 
 # create table
 shifte = shifte[sample(.N, nrow(shiftne))]
@@ -53,7 +53,7 @@ tab_list[[1]] = "\\renewcommand{\\arraystretch}{1.2}
 \\setlength{\\tabcolsep}{10pt}
 \\begin{table}[htp]
 \\centering
-\\caption{1950's shifts by country (selected estimates)} 
+\\caption{1950's shifts by country (selected estimates, stacking)} 
 \\label{tab:tshift_1950}
 \\scriptsize
 \\begin{tabular}{lrrrrrrrrr}
@@ -72,14 +72,14 @@ tab_list[[3]] = "\\addlinespace
 \\end{table}
 "
 
-cat(paste0(unlist(tab_list)), file = paste0(tables_path, select_estimates, "shift_1950.tex"))
-file.copy(paste0(tables_path, select_estimates, "shift_1950.tex"), manus_tables, recursive = TRUE)
+cat(paste0(unlist(tab_list)), file = paste0(tables_path, select_estimates, "shift_1950_stacking.tex"))
+file.copy(paste0(tables_path, select_estimates, "shift_1950_stacking.tex"), manus_tables, recursive = TRUE)
 
 # plot with differences
 shifts = rbind(shifte, shiftne)
 countries = na.omit(as.numeric(names(shifts)))
 
-savepdf(paste0(plots_path, select_estimates, "shifts_1950_comparison"))
+savepdf(paste0(plots_path, select_estimates, "shifts_1950_stacking_comparison"))
     for (i in seq_along(countries)) {
         out = shifts[, c(as.character(countries[i]), "error"), with = FALSE]
         setnames(out, as.character(countries[i]), "est")
@@ -95,20 +95,15 @@ savepdf(paste0(plots_path, select_estimates, "shifts_1950_comparison"))
         )
     }
 dev.off()
-file.copy(paste0(plots_path, select_estimates, "shifts_1950_comparison.pdf"), 
+file.copy(paste0(plots_path, select_estimates, "shifts_1950_stacking_comparison.pdf"), 
     manus_plots, recursive = TRUE)
 
 
-# read data all estimates
-select_estimates = "f"
-data_list = readRDS(paste0(data_path, select_estimates, "datalist.rds"))
-idat = data_list[["single-imputation"]]
-country_labs = data_list[["ctrylabels"]]
-
-shifte = readRDS(paste0(data_path, select_estimates, "shifts_error.rds"))[[1]][,
+# baseline
+shifte = readRDS(paste0(data_path, select_estimates, "shifts_baseline_error.rds"))[,
     error := "Bootstrap"]
-shiftne = readRDS(paste0(data_path, select_estimates, "shifts_no_error.rds"))[[1]][,
-    error := "Mean"]
+shiftne = readRDS(paste0(data_path, select_estimates, "shifts_baseline_no_error.rds"))[,
+    error := "Average LE"]
 
 # create table
 shifte = shifte[sample(.N, nrow(shiftne))]
@@ -135,8 +130,8 @@ tab_list[[1]] = "\\renewcommand{\\arraystretch}{1.2}
 \\setlength{\\tabcolsep}{10pt}
 \\begin{table}[htp]
 \\centering
-\\caption{1950's shifts by country (all estimates)} 
-\\label{tab:fshift_1950}
+\\caption{1950's shifts by country (selected estimates, baseline)} 
+\\label{tab:tshift_1950}
 \\scriptsize
 \\begin{tabular}{lrrrrrrrrr}
   \\hline
@@ -153,14 +148,15 @@ tab_list[[3]] = "\\addlinespace
 \\end{tabular}
 \\end{table}
 "
-cat(paste0(unlist(tab_list)), file = paste0(tables_path, select_estimates, "shift_1950.tex"))
-file.copy(paste0(tables_path, select_estimates, "shift_1950.tex"), manus_tables, recursive = TRUE)
+
+cat(paste0(unlist(tab_list)), file = paste0(tables_path, select_estimates, "shift_1950_baseline.tex"))
+file.copy(paste0(tables_path, select_estimates, "shift_1950_baseline.tex"), manus_tables, recursive = TRUE)
 
 # plot with differences
 shifts = rbind(shifte, shiftne)
 countries = na.omit(as.numeric(names(shifts)))
 
-savepdf(paste0(plots_path, select_estimates, "shifts_1950_comparison"))
+savepdf(paste0(plots_path, select_estimates, "shifts_1950_baseline_comparison"))
     for (i in seq_along(countries)) {
         out = shifts[, c(as.character(countries[i]), "error"), with = FALSE]
         setnames(out, as.character(countries[i]), "est")
@@ -176,6 +172,5 @@ savepdf(paste0(plots_path, select_estimates, "shifts_1950_comparison"))
         )
     }
 dev.off()
-file.copy(paste0(plots_path, select_estimates, "shifts_1950_comparison.pdf"), 
+file.copy(paste0(plots_path, select_estimates, "shifts_1950_baseline_comparison.pdf"), 
     manus_plots, recursive = TRUE)
-

@@ -1,0 +1,48 @@
+
+\begin{table}
+\caption{Models for LE and GPD100 replicates}
+\begin{center}
+\scalebox{0.7}{
+\begin{threeparttable}
+\begin{tabular}{l D{.}{.}{4.8} D{.}{.}{4.8} D{.}{.}{4.8} D{.}{.}{4.8} D{.}{.}{4.8}}
+\hline
+ & \multicolumn{1}{c}{Model 1} & \multicolumn{1}{c}{Model 2} & \multicolumn{1}{c}{Model 3} & \multicolumn{1}{c}{Model 4} & \multicolumn{1}{c}{Model 5} \\
+\hline
+Fixed effects             &              &               &               &               &               \\
+                          &              &               &               &               &               \\
+\quad Constant            & 0.23^{*}     & 0.36^{*}      & 0.13^{*}      & 0.16^{*}      & 0.13^{*}      \\
+                          & [0.13; 0.32] & [ 0.25; 0.46] & [ 0.06; 0.19] & [ 0.10; 0.22] & [ 0.09; 0.18] \\
+\quad GDP per capita      & 0.23^{*}     & 0.42^{*}      & 0.06^{*}      & 0.10^{*}      & 0.06^{*}      \\
+                          & [0.21; 0.25] & [ 0.33; 0.52] & [ 0.01; 0.12] & [ 0.05; 0.15] & [ 0.02; 0.11] \\
+\quad Year                &              &               & 0.44^{*}      &               & 0.32^{*}      \\
+                          &              &               & [ 0.42; 0.47] &               & [ 0.27; 0.36] \\
+\quad Literacy            &              &               &               & 0.40^{*}      & 0.13^{*}      \\
+                          &              &               &               & [ 0.37; 0.43] & [ 0.08; 0.18] \\
+\quad Infrastructure      &              &               &               & 0.08^{*}      & 0.06^{*}      \\
+                          &              &               &               & [ 0.05; 0.11] & [ 0.04; 0.08] \\
+\quad Population          &              &               &               & 0.05^{*}      & -0.02         \\
+                          &              &               &               & [ 0.00; 0.10] & [-0.05; 0.02] \\
+\quad US aid per capita   &              &               &               & 0.01^{*}      & 0.01^{*}      \\
+                          &              &               &               & [ 0.00; 0.01] & [ 0.00; 0.01] \\
+Random effects            &              &               &               &               &               \\
+                          &              &               &               &               &               \\
+\quad Intercept           & 0.40^{*}     & 0.41^{*}      & 0.26^{*}      & 0.24^{*}      & 0.17^{*}      \\
+                          & [0.34; 0.48] & [ 0.34; 0.50] & [ 0.21; 0.33] & [ 0.20; 0.29] & [ 0.14; 0.22] \\
+\quad GDP                 &              & 0.36^{*}      & 0.17^{*}      & 0.16^{*}      & 0.13^{*}      \\
+                          &              & [ 0.28; 0.47] & [ 0.10; 0.26] & [ 0.12; 0.22] & [ 0.08; 0.19] \\
+\quad cor(Intercept, GDP) &              & 0.09          & 0.26          & 0.03          & 0.09          \\
+                          &              & [-0.21; 0.38] & [-0.15; 0.60] & [-0.30; 0.36] & [-0.31; 0.46] \\
+\hline
+Num. obs.                 & 1261         & 1261          & 1261          & 1261          & 1261          \\
+R$^2$                     & 0.95         & 0.97          & 0.99          & 0.98          & 0.99          \\
+\hline
+\end{tabular}
+\begin{tablenotes}[flushleft]
+\scriptsize{\item  $^*$ Null hypothesis value outside the confidence interval. 
+        \item All covariates are standardized. Life expectancy estimates were transformed using $ln\left(-ln( 1-\frac{e_0}{ (78.6 + 1.05)}\right)$.}
+\end{tablenotes}
+\end{threeparttable}
+}
+\label{tab:models}
+\end{center}
+\end{table}

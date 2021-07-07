@@ -257,7 +257,7 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
     n = 100, ex_max = 100, newdata, clusters = 2) {
 
     nsamples = length(samples)
-
+   
     cl = makeCluster(clusters)
     registerDoParallel(cl)
     
@@ -265,6 +265,7 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
         .packages = c("parallel", "doParallel", 
             "data.table", "rstan", "rethinking")) %dopar% {
     
+        options(mc.cores = 1)
         source("src/utils.R")
         results = multiResultClass()
 
@@ -297,6 +298,7 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
         fit_ss = rstan::extract(model@stanfit, pars = c("pred", "sigma"))
         results$r2 = bayes_R2(fit_ss$pred, fit_ss$sigma)
         rm(fit_ss, model)
+        Sys.sleep(sample(20:40, 1))
         return(results)
     }
 
@@ -327,7 +329,7 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
     
     return(
         list(
-            "fit" = sflist2stanfit(models), 
+            "fit" = rstan::sflist2stanfit(models), 
             "shifts" = rbindlist(shifts), 
             "predictions" = pred,
             "r2" = median(r2),

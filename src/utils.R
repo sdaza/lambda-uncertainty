@@ -261,10 +261,10 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
     cl = makeCluster(clusters)
     registerDoParallel(cl)
     
-    output = foreach(i = 1:nsamples) %dopar% {
+    output = foreach(i = 1:nsamples,
+        .packages = c("parallel", "doParallel", 
+            "data.table", "rstan", "rethinking")) %dopar% {
     
-        library(data.table)
-        library(rethinking)
         source("src/utils.R")
         results = multiResultClass()
 
@@ -282,11 +282,11 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
 
         model = ulam(
             flist, 
-            data = mdata, chains = chains, cores = 1, 
-            iter = iterations, chain_id = i
+            data = mdata, chains = 1, cores = 1, 
+            iter = iterations
         )
 
-        check = as.matrix(rethinking::precis(model, depth = 3))
+        check = as.matrix(precis(model, depth = 3))
         results$rhat = sum(na.omit(check[, "Rhat4"]) > 1.01)
         results$neff = sum(na.omit(check[, "n_eff"]) < 100)
         rm(check)

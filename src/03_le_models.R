@@ -9,18 +9,19 @@
 # install.packages("StanHeaders", repos="https://cloud.r-project.org")
 # install.packages("rstan", repos="https://cloud.r-project.org")
 
+
 # libraries, functions and options
 library(data.table)
 library(doParallel)
 library(foreach)
 library(texreg)
-library(rethinking)
+# library(rethinking)
 # library(bayesplot)
-library(ggplot2)
+# library(ggplot2)
 # library(ggridges)
 # library(ggcorrplot)
 # library(patchwork)
-rstan_options(auto_write = FALSE)
+# rstan_options(auto_write = FALSE)
 
 source("src/utils.R")
 slackr::slackr_setup(config_file = ".slackr")
@@ -45,6 +46,8 @@ country_labs = data_list[["ctrylabels"]]
 covs = data_list[["covs"]]
 ex_max = data_list[["ex_max"]]
 lctryear = levels(covs$ctryear)
+formulas = data_list[["formulas"]]
+newdata = data_list[["newdata"]]
 
 select_estimates = ""
 
@@ -52,31 +55,34 @@ select_estimates = ""
 nsamples = length(samples)
 
 # create data object for testing
-# idat = samples[[sample(1:10, 1)]]
-# idat[, cy := .GRP, ctryear]
-# mdata = list(
-#     wy = idat$wy, 
-#     zyear = idat$zyear,
-#     zinfrastructure = idat$zinfrastructure, 
-#     zpop= idat$zpop, 
-#     zilit = idat$zilit, 
-#     zius_aid_pc  = idat$zius_aid_pc, 
-#     zigdp_pc = idat$zigdp_pc, 
-#     ctryearg = idat$ctryearg)
+idat = samples[[sample(1:10, 1)]]
+idat[, cy := .GRP, ctryear]
+mdata = list(
+    wy = idat$wy, 
+    zyear = idat$zyear,
+    zinfrastructure = idat$zinfrastructure, 
+    zpop= idat$zpop, 
+    zilit = idat$zilit, 
+    zius_aid_pc  = idat$zius_aid_pc, 
+    zigdp_pc = idat$zigdp_pc, 
+    ctryearg = idat$ctryearg)
 
-# model = ulam(formulas[[1]],
-#   data = mdata, chains = 1, cores = 1, iter = 4000
-# )
-# precis(model, depth = 1)
+model = rethinking::ulam(formulas[[1]],
+  data = mdata, chains = 4, cores = 4, iter = 4000
+)
+
+precis(model, depth = 1)
+
 
 # table list
 tabs = list()
 tshifts = list()
 iterations = c(4000, 2000, 3000, 3000, 3000)
 
+
 # model 1
 model_number = 1
-output = runModel(formulas[[model_number]], samples[1:3], newdata = newdata, ex_max = ex_max, 
+output = runModel(formulas[[model_number]], samples[1:4], newdata = newdata, ex_max = ex_max, 
     iterations = iterations[model_number], clusters = 2)
 
 print(paste0("Number of parameters with Rhat4 > 1.01: ", output$rhat))
@@ -124,7 +130,6 @@ tabs[[model_number]] = extractStan(output$fit,
 rm(output)
 saveRDS(tabs, paste0(tables_path, "tabs.rds"))
 slackr::slackr_msg(txt = paste0("Stan loop finish at: ", Sys.time()))
-
 
 # create regression table
 select_estimates = ""
@@ -175,3 +180,34 @@ file.copy(paste0(tables_path, select_estimates, "models.tex"), manus_tables,
 
 screenreg(tabs, 
   omit.coef = "^a\\_cy\\[.+|^b_gdp\\_cy\\[.+|^Rho\\[1,1\\]|^Rho\\[2,2\\]" )
+
+
+# testing parallel work windows
+library(rstan)
+ options(mc.cores = 1)
+library(doParallel)
+cl = makeCluster(4)
+registerDoParallel(cl)
+output = foreach(i = 1:20,
+        .packages = c("rstan", "rethinking")) %dopar% {
+
+    dat = samples[[i]]
+    mdata = list(
+                wy = dat$wy, 
+                zyear = dat$zyear,
+                zinfrastructure = dat$zinfrastructure, 
+                zpop= dat$zpop, 
+                zilit = dat$zilit, 
+                zius_aid_pc = dat$zius_aid_pc, 
+                zigdp_pc = dat$zigdp_pc, 
+                ctryearg = dat$ctryearg
+    )
+    
+        model = ulam(
+            formulas[[1]], 
+            data = mdata, chains = 1, cores = 1, 
+            iter = 4000
+        )
+}
+
+stopCluster(cl)

@@ -77,7 +77,7 @@ covs[, zinfrastructure := apply(.SD, 1, mean), .SDcols = c("ziwater", "zisewage"
 
 vars = c("ctry", "year", "qyear", "gyear", "ctryear", "ctry50", "ctryearg", 
     "year1950", "zpop", "zyear", paste0("zi", ovars), "zinfrastructure", 
-    "log_gdp_pc", "igd_pc")
+    "log_gdp_pc", "igdp_pc")
 
 covs = covs[, ..vars]
 covs[, ctry := as.numeric(ctry)]

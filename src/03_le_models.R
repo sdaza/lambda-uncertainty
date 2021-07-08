@@ -81,7 +81,7 @@ iterations = c(4000, 2000, 3000, 3000, 3000)
 
 
 # get model output
-model_number = 2
+model_number = 3
 output = runModel(formulas[[model_number]], samples, newdata = newdata, ex_max = ex_max, 
     iterations = iterations[model_number], clusters = 3)
 

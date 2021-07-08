@@ -397,11 +397,11 @@ createShiftTable = function(tab, file = "") {
     model_number = unique(tab$model)
     temp = dcast(tab, lctry  ~ year, value.var = c("estimate"))
     title = paste0("Shift's estimates and 95\\% CI by period and country, Model ", model_number)
-
+    label = paste0("tab:shifts_m", model_number)
     f = "\\\\renewcommand{\\\\arraystretch}{1.5}
         \\\\setlength{\\\\tabcolsep}{20pt}\n"
 
-    lt = print(xtable(temp, caption = title, 
+    lt = print(xtable::xtable(temp, caption = title, 
         align = c("l", "l", "c", "c", "c")), 
         table.placement = "htp", 
         booktabs=TRUE,

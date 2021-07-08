@@ -116,6 +116,7 @@ tabshift = tabshift[, .(estimate = paste0(specify_decimal(mean(shift), 2),
     .(ctry, year)]
 tabshift[, lctry := as.factor(v[as.character(ctry)])]
 tabshift[, model := model_number]
+
 tshifts = readRDS(paste0(tables_path, "tab_shifts.rds"))
 tshifts[[model_number]] = tabshift
 saveRDS(tshifts, paste0(tables_path, "tab_shifts.rds"))
@@ -123,7 +124,7 @@ saveRDS(tshifts, paste0(tables_path, "tab_shifts.rds"))
 createShiftTable(tshifts[[model_number]], paste0(tables_path, "shifts_m", model_number, ".tex"))
 file.copy(paste0(tables_path, select_estimates, "shifts_m", model_number, ".tex"), manus_tables, 
     recursive = TRUE)    
-    
+
 # model table
 tabs = readRDS(paste0(tables_path, "tabs.rds"))
 tabs[[model_number]] = extractStan(output$fit, 

@@ -390,3 +390,27 @@ extractStan = function(model, r2 = TRUE, n = NULL) {
         gof.decimal = gof.decimal)
     return(tr)
 }
+
+
+createShiftTable = function(tab, file = "") {
+    
+    model_number = unique(tab$model)
+    temp = dcast(tab, lctry  ~ year, value.var = c("estimate"))
+    title = paste0("Shift's estimates and 95\\% CI by period and country, Model ", model_number)
+
+    f = "\\\\renewcommand{\\\\arraystretch}{1.5}
+        \\\\setlength{\\\\tabcolsep}{20pt}\n"
+
+    lt = print(xtable(temp, caption = title, 
+        align = c("l", "l", "c", "c", "c")), 
+        table.placement = "htp", 
+        booktabs=TRUE,
+        caption.placement = "top", 
+        include.rownames = FALSE, 
+        scalebox = 0.8)
+
+    lt = gsub("lctry", "Country", lt)
+    lt = gsub("\\centering\n", paste0("\\centering\n", f), lt)
+    cat(lt, file = file)
+
+}

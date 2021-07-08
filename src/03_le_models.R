@@ -79,9 +79,8 @@ nsamples = length(samples)
 # tshifts = list()
 iterations = c(4000, 2000, 3000, 3000, 3000)
 
-
 # get model output
-model_number = 3
+model_number = 4
 output = runModel(formulas[[model_number]], samples, newdata = newdata, ex_max = ex_max, 
     iterations = iterations[model_number], clusters = 3)
 
@@ -107,7 +106,7 @@ dev.off()
 file.copy(paste0(plots_path, select_estimates, 
     paste0("shifts_by_period_m", model_number, ".pdf")), manus_plots, recursive = TRUE)
 
-# shift table
+# shifts
 tabshift = output$shifts
 tabshift = na.omit(tabshift, "shift")
 v = unlist(country_labs)
@@ -121,6 +120,10 @@ tshifts = readRDS(paste0(tables_path, "tab_shifts.rds"))
 tshifts[[model_number]] = tabshift
 saveRDS(tshifts, paste0(tables_path, "tab_shifts.rds"))
 
+createShiftTable(tshifts[[model_number]], paste0(tables_path, "shifts_m", model_number, ".tex"))
+file.copy(paste0(tables_path, select_estimates, "shifts_m", model_number, ".tex"), manus_tables, 
+    recursive = TRUE)    
+    
 # model table
 tabs = readRDS(paste0(tables_path, "tabs.rds"))
 tabs[[model_number]] = extractStan(output$fit, 

@@ -4,23 +4,16 @@
 #####################################
 
 
-# R < src/03_le_models_err.R > output/log/03_le_models_err_t.log  --no-save  &
-# R < src/03_le_models_err.R > output/log/03_le_models_err_f.log  --no-save  &
-# install.packages("StanHeaders", repos="https://cloud.r-project.org")
-# install.packages("rstan", repos="https://cloud.r-project.org")
-
+# R < src/03_le_models.R > output/log/03_le_models.log  --no-save  &
 
 # libraries, functions and options
 library(data.table)
 library(doParallel)
 library(foreach)
 library(texreg)
-# library(rethinking)
-# library(bayesplot)
+library(rethinking)
 library(ggplot2)
-# library(ggridges)
-# library(ggcorrplot)
-# library(patchwork)
+
 rstan_options(auto_write = FALSE)
 
 source("src/utils.R")
@@ -78,64 +71,71 @@ rethinking::precis(model, depth = 1)
 # tshifts = list()
 iterations = c(4000, 2000, 3000, 3000, 3000)
 
-# get model output
-model_number = 1
-output = runModel(formulas[[model_number]], samples[1:4], newdata = newdata, ex_max = ex_max, 
-    iterations = iterations[model_number], clusters = 3)
+# loop by model
+for (m in 2:5) {
 
-print(paste0("Number of parameters with Rhat4 > 1.01: ", output$rhat))
-print(paste0("Number of parameters with neff < 100: ", output$rhat))
+    # get model output
+    model_number = m
+    output = runModel(formulas[[model_number]], samples, newdata = newdata, ex_max = ex_max, 
+        iterations = iterations[model_number], clusters = 10)
 
-# prediction plot
-plots = predictionPlots(output$predictions, country_labels = country_labs)
-plots = patchwork::wrap_plots(plots, ncol = 3)
-savepdf(paste0(plots_path, select_estimates, 
-    paste0("fit_check_m", model_number)), width = 30, height = 35)
-    print(plots)
-dev.off()
-file.copy(paste0(plots_path, select_estimates, 
-    paste0("fit_check_m", model_number, ".pdf")), manus_plots, recursive = TRUE)
+    print(paste0("Number of parameters with Rhat4 > 1.01: ", output$rhat))
+    print(paste0("Number of parameters with neff < 100: ", output$rhat))
 
-# shift plot
-shift_plot = plotShifts(output$shifts, country_labs)
-savepdf(paste0(plots_path, select_estimates, 
-    paste0("shifts_by_period_m", model_number)), height = 20)
-    print(shift_plot)
-dev.off()
-file.copy(paste0(plots_path, select_estimates, 
-    paste0("shifts_by_period_m", model_number, ".pdf")), manus_plots, recursive = TRUE)
+    # prediction plot
+    plots = predictionPlots(output$predictions, country_labels = country_labs)
+    plots = patchwork::wrap_plots(plots, ncol = 3)
+    savepdf(paste0(plots_path, select_estimates, 
+        paste0("fit_check_m", model_number)), width = 30, height = 35)
+        print(plots)
+    dev.off()
+    file.copy(paste0(plots_path, select_estimates, 
+        paste0("fit_check_m", model_number, ".pdf")), manus_plots, recursive = TRUE)
 
-# shifts
-tabshift = output$shifts
-tabshift = na.omit(tabshift, "shift")
-v = unlist(country_labs)
-tabshift = tabshift[, .(estimate = paste0(specify_decimal(mean(shift), 2), 
-    " [", specify_decimal(quantile(shift, probs = 0.025), 2), ", ", 
-    specify_decimal(quantile(shift, probs = 0.975), 2), "]")), 
-    .(ctry, year)]
-tabshift[, lctry := as.factor(v[as.character(ctry)])]
-tabshift[, model := model_number]
+    # shift plot
+    shift_plot = plotShifts(output$shifts, country_labs)
+    savepdf(paste0(plots_path, select_estimates, 
+        paste0("shifts_by_period_m", model_number)), height = 20)
+        print(shift_plot)
+    dev.off()
+    file.copy(paste0(plots_path, select_estimates, 
+        paste0("shifts_by_period_m", model_number, ".pdf")), manus_plots, recursive = TRUE)
 
-tshifts = readRDS(paste0(tables_path, "tab_shifts.rds"))
-tshifts[[model_number]] = tabshift
-saveRDS(tshifts, paste0(tables_path, "tab_shifts.rds"))
+    # shifts
+    tabshift = output$shifts
+    v = unlist(country_labs)
+    tabshift = tabshift[, .(estimate = paste0(specify_decimal(mean(shift), 2), 
+        " [", specify_decimal(quantile(shift, probs = 0.025), 2), ", ", 
+        specify_decimal(quantile(shift, probs = 0.975), 2), "]")), 
+        .(ctry, year)]
+    tabshift[, lctry := as.factor(v[as.character(ctry)])]
+    tabshift[, model := model_number]
 
-createShiftTable(tshifts[[model_number]], paste0(tables_path, "shifts_m", model_number, ".tex"))
-file.copy(paste0(tables_path, select_estimates, "shifts_m", model_number, ".tex"), manus_tables, 
-    recursive = TRUE)    
+    tshifts = readRDS(paste0(tables_path, "tab_shifts.rds"))
+    tshifts[[model_number]] = tabshift
+    saveRDS(tshifts, paste0(tables_path, "tab_shifts.rds"))
 
-# model table
-tabs = readRDS(paste0(tables_path, "tabs.rds"))
-tabs[[model_number]] = extractStan(output$fit, 
-    n = nrow(idat), r2 = output$r2)
-rm(output)
-saveRDS(tabs, paste0(tables_path, "tabs.rds"))
-slackr::slackr_msg(txt = paste0("Stan loop finish at: ", Sys.time()))
+    createShiftTable(tshifts[[model_number]], paste0(tables_path, "shifts_m", model_number, ".tex"))
+    file.copy(paste0(tables_path, select_estimates, "shifts_m", model_number, ".tex"), manus_tables, 
+        recursive = TRUE)    
 
+    # model table
+    tabs = readRDS(paste0(tables_path, "tabs.rds"))
+    tabs[[model_number]] = extractStan(output$fit, 
+        n = nrow(idat), r2 = output$r2)
+    rm(output)
+    saveRDS(tabs, paste0(tables_path, "tabs.rds"))
+    slackr::slackr_msg(txt = paste0("Stan loop ", m, " finished at: ", Sys.time()))
+
+}
 
 # create regression table
 select_estimates = ""
 tabs = readRDS(paste0(tables_path, "tabs.rds"))
+
+# testing 
+# screenreg(tabs, 
+#   omit.coef = "^a\\_cy\\[.+|^b_gdp\\_cy\\[.+|^Rho\\[1,1\\]|^Rho\\[2,2\\]" )
 
 # rename some coefficients
 cnames = tabs[[1]]@coef.names
@@ -179,39 +179,3 @@ texreg::texreg(tabs,
 )    
 file.copy(paste0(tables_path, select_estimates, "models.tex"), manus_tables, 
     recursive = TRUE)    
-
-screenreg(tabs, 
-  omit.coef = "^a\\_cy\\[.+|^b_gdp\\_cy\\[.+|^Rho\\[1,1\\]|^Rho\\[2,2\\]" )
-
-# testing parallel work windows
-library(rstan)
-options(mc.cores = 1)
-library(doParallel)
-cl = makeCluster(4)
-registerDoParallel(cl)
-output = foreach(i = 1:20,
-        .packages = c("rstan", "rethinking")) %dopar% {
-
-    options(mc.cores = 1)
-    dat = samples[[i]]
-    mdata = list(
-                wy = dat$wy, 
-                zyear = dat$zyear,
-                zinfrastructure = dat$zinfrastructure, 
-                zpop= dat$zpop, 
-                zilit = dat$zilit, 
-                zius_aid_pc = dat$zius_aid_pc, 
-                zigdp_pc = dat$zigdp_pc, 
-                ctryearg = dat$ctryearg
-    )
-    
-        model = ulam(
-            formulas[[1]], 
-            data = mdata, chains = 1, cores = 1, 
-            iter = 4000
-        )
-    return(model)
-    Sys.sleep(samples(20:40, 1))
-}
-
-stopCluster(cl)

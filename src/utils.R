@@ -284,7 +284,7 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
         model = ulam(
             flist, 
             data = mdata, chains = 1, cores = 1, 
-            iter = iterations
+            iter = iterations, cmdstan = TRUE
         )
 
         check = as.matrix(precis(model, depth = 3))
@@ -393,9 +393,9 @@ extractStan = function(model, r2 = TRUE, n = NULL) {
 
 
 createShiftTable = function(tab, file = "") {
-    
     model_number = unique(tab$model)
     temp = dcast(tab, lctry  ~ year, value.var = c("estimate"))
+    setorder(temp, -lctry)
     title = paste0("Shift's estimates and 95\\% CI by period and country, Model ", model_number)
     label = paste0("tab:shifts_m", model_number)
     f = "\\\\renewcommand{\\\\arraystretch}{1.5}

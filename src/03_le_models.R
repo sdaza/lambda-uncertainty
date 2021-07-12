@@ -21,7 +21,7 @@ library(ggplot2)
 # library(ggridges)
 # library(ggcorrplot)
 # library(patchwork)
-# rstan_options(auto_write = FALSE)
+rstan_options(auto_write = FALSE)
 
 source("src/utils.R")
 slackr::slackr_setup(config_file = ".slackr")
@@ -55,24 +55,23 @@ select_estimates = ""
 nsamples = length(samples)
 
 # create data object for testing
-# idat = samples[[sample(1:10, 1)]]
-# idat[, cy := .GRP, ctryear]
-# mdata = list(
-#     wy = idat$wy, 
-#     zyear = idat$zyear,
-#     zinfrastructure = idat$zinfrastructure, 
-#     zpop= idat$zpop, 
-#     zilit = idat$zilit, 
-#     zius_aid_pc  = idat$zius_aid_pc, 
-#     zigdp_pc = idat$zigdp_pc, 
-#     ctryearg = idat$ctryearg)
+idat = samples[[sample(1:10, 1)]]
+idat[, cy := .GRP, ctryear]
+mdata = list(
+    wy = idat$wy, 
+    zyear = idat$zyear,
+    zinfrastructure = idat$zinfrastructure, 
+    zpop= idat$zpop, 
+    zilit = idat$zilit, 
+    zius_aid_pc  = idat$zius_aid_pc, 
+    zigdp_pc = idat$zigdp_pc, 
+    ctryearg = idat$ctryearg)
 
-# model = rethinking::ulam(formulas[[1]],
-#   data = mdata, chains = 4, cores = 4, iter = 4000
-# )
+model = rethinking::ulam(formulas[[1]],
+  data = mdata, chains = 4, cores = 4, iter = 4000, cmdstan = TRUE
+)
 
-# rethinking::precis(model, depth = 1)
-
+rethinking::precis(model, depth = 1)
 
 # table list
 # tabs = list()
@@ -80,8 +79,8 @@ nsamples = length(samples)
 iterations = c(4000, 2000, 3000, 3000, 3000)
 
 # get model output
-model_number = 4
-output = runModel(formulas[[model_number]], samples, newdata = newdata, ex_max = ex_max, 
+model_number = 1
+output = runModel(formulas[[model_number]], samples[1:4], newdata = newdata, ex_max = ex_max, 
     iterations = iterations[model_number], clusters = 3)
 
 print(paste0("Number of parameters with Rhat4 > 1.01: ", output$rhat))

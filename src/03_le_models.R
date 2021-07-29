@@ -13,7 +13,9 @@ library(foreach)
 library(texreg)
 library(rethinking)
 library(ggplot2)
-
+library(factoextra)
+library(RColorBrewer)
+library(rlist)
 rstan_options(auto_write = FALSE)
 
 source("src/utils.R")
@@ -48,31 +50,28 @@ select_estimates = ""
 nsamples = length(samples)
 
 # create data object for testing
-idat = samples[[sample(1:10, 1)]]
-idat[, cy := .GRP, ctryear]
-mdata = list(
-    wy = idat$wy, 
-    zyear = idat$zyear,
-    zinfrastructure = idat$zinfrastructure, 
-    zpop= idat$zpop, 
-    zilit = idat$zilit, 
-    zius_aid_pc  = idat$zius_aid_pc, 
-    zigdp_pc = idat$zigdp_pc, 
-    ctryearg = idat$ctryearg)
+# idat = samples[[sample(1:10, 1)]]
+# idat[, cy := .GRP, ctryear]
+# mdata = list(
+#     wy = idat$wy, 
+#     zyear = idat$zyear,
+#     zinfrastructure = idat$zinfrastructure, 
+#     zpop= idat$zpop, 
+#     zilit = idat$zilit, 
+#     zius_aid_pc  = idat$zius_aid_pc, 
+#     zigdp_pc = idat$zigdp_pc, 
+#     ctryearg = idat$ctryearg)
 
-model = rethinking::ulam(formulas[[1]],
-  data = mdata, chains = 4, cores = 4, iter = 4000, cmdstan = TRUE
-)
+# model = rethinking::ulam(formulas[[1]],
+#   data = mdata, chains = 4, cores = 4, iter = 4000, cmdstan = TRUE
+# )
 
-rethinking::precis(model, depth = 1)
-
-# table list
-# tabs = list()
-# tshifts = list()
-iterations = c(4000, 2000, 3000, 3000, 3000)
+# rethinking::precis(model, depth = 1)
 
 # loop by model
-for (m in 2:5) {
+iterations = c(6000, 4000, 4000, 4000, 4000)
+
+for (m in seq_along(iterations)) {
 
     # get model output
     model_number = m
@@ -92,6 +91,13 @@ for (m in 2:5) {
     file.copy(paste0(plots_path, select_estimates, 
         paste0("fit_check_m", model_number, ".pdf")), manus_plots, recursive = TRUE)
 
+    # save shifts
+    # shifts = list()
+    shifts = readRDS("output/data/shifts.rds")
+    shifts[[model_number]] = output$shifts
+    saveRDS(shifts, "output/data/shifts.rds")
+    rm(shifts)
+    
     # shift plot
     shift_plot = plotShifts(output$shifts, country_labs)
     savepdf(paste0(plots_path, select_estimates, 
@@ -102,8 +108,8 @@ for (m in 2:5) {
         paste0("shifts_by_period_m", model_number, ".pdf")), manus_plots, recursive = TRUE)
 
     # shifts
-    tabshift = output$shifts
     v = unlist(country_labs)
+    tabshift = output$shifts
     tabshift = tabshift[, .(estimate = paste0(specify_decimal(mean(shift), 2), 
         " [", specify_decimal(quantile(shift, probs = 0.025), 2), ", ", 
         specify_decimal(quantile(shift, probs = 0.975), 2), "]")), 
@@ -128,6 +134,73 @@ for (m in 2:5) {
     slackr::slackr_msg(txt = paste0("Stan loop ", m, " finished at: ", Sys.time()))
 
 }
+
+# create cross model shift plots
+shifts = readRDS("output/data/shifts.rds")
+shifts = rbindlist(shifts, idcol = "model")
+
+for (i in c(1950, 1970, 1990)) {
+    print(paste0(":::::: plotting year ", i))
+    name = paste0(plots_path, select_estimates, "shifts_by_year_", i)
+    savepdf(name, height = 20)
+        print(plotShiftModels(shifts[year == i], country_labs))
+    dev.off()
+    file.copy(paste0(name, ".pdf"), manus_plots, 
+        recursive = TRUE)
+}
+
+# cluster analysis
+shifts = readRDS("output/data/shifts.rds")
+shifts = rbindlist(shifts, idcol = "model")
+shifts = shifts[, .(shift = median(shift)), .(model, year, ctry)]
+shifts = shifts[model %in% c(3, 5)]
+shifts = dcast(shifts, ctry ~ year + model, value.var = "shift")
+v = unlist(country_labs)
+shifts[, lctry := as.factor(v[as.character(ctry)])]
+
+dt = data.frame(scale(shifts[,.SD, .SDcols = !c('ctry', 'lctry')]))
+rownames(dt) = shifts$lctry
+dt = dt[complete.cases(dt),]
+
+hc = hclust(d = dist(x = dt, method = "euclidean"), method = "complete")
+savepdf("output/plots/dendogram", width = 18, height = 18)
+fviz_dend(x = hc, cex = 0.5, main = "Complete linkage",
+          sub = "Euclidean distance", k = 6)
+dev.off()
+
+savepdf("output/plots/nclusters")
+fviz_nbclust(x = dt, FUNcluster = kmeans, method = "silhouette", k.max = 15) +
+  labs(title = "Number of clusters")
+dev.off()
+
+hk = hkmeans(x = dt, hc.metric = "euclidean", hc.method = "complete", k = 5)
+savepdf("output/plots/clusters")
+fviz_cluster(object = hk, palette = "Set2", repel = TRUE) +
+  theme_bw() + labs(title = "Hierarchical k-means clustering")
+dev.off()
+
+# create plot grouping by cluster 
+colors = brewer.pal(5, "Set2")
+shifts = readRDS("output/data/shifts.rds")
+cluster = data.table(lctry = names(hk$cluster), cluster = hk$cluster)
+setorder(cluster, cluster)
+lab_order = as.character(cluster$lctry)
+cluster[, color :=  colors[cluster]]
+
+vlist = list()
+for (i in seq_along(lab_order)) {
+    vlist = append(vlist, list.search(country_labs, . == lab_order[i])) 
+}
+
+shift_plot = plotShifts(shifts[[5]], vlist, 
+    color = cluster$color)
+savepdf(paste0(plots_path, select_estimates, 
+    paste0("shifts_by_period_ordered_m", 5)), height = 20)
+    print(shift_plot)
+dev.off()
+file.copy(paste0(plots_path, select_estimates, 
+    paste0("shifts_by_period_ordered_m", 5, ".pdf")), manus_plots, recursive = TRUE)
+
 
 # create regression table
 select_estimates = ""
@@ -168,7 +241,7 @@ texreg::texreg(tabs,
     label = paste0("tab:", select_estimates, "models"),
     groups = groups,
     custom.note = "\\item  $^*$ Null hypothesis value outside the confidence interval. 
-        \\item All covariates are standardized. Life expectancy estimates were transformed using $ln\\left(-ln( 1-\\frac{e_0}{ (78.6 + 1.05)}\\right)$.",
+        \\item All covariates are standardized. Life expectancy estimates were transformed using $ln\\left(-ln( 1-\\frac{e_0}{ (79.45 + 1.05)}\\right)$.",
     scalebox = 0.7,
     center = TRUE,
     dcolumn = TRUE, 
@@ -178,4 +251,7 @@ texreg::texreg(tabs,
     file = paste0(tables_path, select_estimates, "models.tex")
 )    
 file.copy(paste0(tables_path, select_estimates, "models.tex"), manus_tables, 
-    recursive = TRUE)    
+    recursive = TRUE)
+
+# final message
+slackr::slackr_msg(txt = paste0("Overall code finished at: ", Sys.time()))

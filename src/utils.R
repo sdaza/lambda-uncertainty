@@ -221,11 +221,12 @@ computeShift = function(model, newdata, ex_max, n = 1000) {
 }
 
 
-plotShifts = function(shifts, country_labs, title = "", xlab = "Shift", ylab = "Country") {
+plotShifts = function(shifts, country_labs, title = "", xlab = "Shift", ylab = "Country", color = NULL) {
+    shifts = shifts[ctry %in% as.numeric(names(country_labs))]
     xmin = min(shifts$shift, na.rm = TRUE) - 1.5
     xmax = max(shifts$shift, na.rm = TRUE) + 1.5
     v = unlist(country_labs)
-    shifts[, lctry := as.factor(v[as.character(ctry)])]
+    shifts[, lctry := factor(v[as.character(ctry)], levels = v)]
     shifts[, year := factor(year)]
     shifts[, ctry := factor(ctry)]
     plot = ggplot2::ggplot(shifts, aes(y = lctry)) +
@@ -236,6 +237,31 @@ plotShifts = function(shifts, country_labs, title = "", xlab = "Shift", ylab = "
         scale_x_continuous(expand = c(0, 0)) +
         ggridges::scale_fill_cyclical(
             values = c("#EC7063", "#F7DC6F", "#229954"), guide = "legend") +
+        coord_cartesian(clip = "off") +
+        ggridges::theme_ridges(grid = TRUE) +
+        theme(legend.position="top", 
+        legend.title = element_blank()) + 
+        theme(axis.text.y = element_text(colour = color))
+    return(plot)
+}
+
+
+plotShiftModels = function(shifts, country_labs, title = "", xlab = "Shift", ylab = "Country") {
+    xmin = min(shifts$shift, na.rm = TRUE) - 1.5
+    xmax = max(shifts$shift, na.rm = TRUE) + 1.5
+    v = unlist(country_labs)
+    shifts[, lctry := as.factor(v[as.character(ctry)])]
+    shifts[, model := factor(model)]
+    shifts[, ctry := factor(ctry)]
+    plot = ggplot2::ggplot(shifts, aes(y = lctry)) +
+        ggridges::geom_density_ridges(aes(x = shift, fill = model), 
+            alpha = .45, color = "white", from = xmin, to = xmax, scale = 1) +
+        labs(x = xlab, y = ylab, title = title) +
+        scale_y_discrete(expand = c(0, 0)) +
+        scale_x_continuous(expand = c(0, 0)) +
+        ggridges::scale_fill_cyclical(
+            values = c("#003f5c", "#58508d", "#bc5090", "#ff6361", "#ffa600"), 
+            guide = "legend") +
         coord_cartesian(clip = "off") +
         ggridges::theme_ridges(grid = TRUE) +
         theme(legend.position="top", 

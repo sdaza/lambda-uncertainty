@@ -154,6 +154,7 @@ shifts = readRDS("output/data/shifts.rds")
 shifts = rbindlist(shifts, idcol = "model")
 shifts = shifts[, .(shift = median(shift)), .(model, year, ctry)]
 shifts = shifts[model %in% c(3, 5)]
+shifts = shifts[year %in% c(1950, 1970, 1990)]
 shifts = dcast(shifts, ctry ~ year + model, value.var = "shift")
 v = unlist(country_labs)
 shifts[, lctry := as.factor(v[as.character(ctry)])]
@@ -162,27 +163,32 @@ dt = data.frame(scale(shifts[,.SD, .SDcols = !c('ctry', 'lctry')]))
 rownames(dt) = shifts$lctry
 dt = dt[complete.cases(dt),]
 
-hc = hclust(d = dist(x = dt, method = "euclidean"), method = "complete")
-savepdf("output/plots/dendogram", width = 18, height = 18)
-fviz_dend(x = hc, cex = 0.5, main = "Complete linkage",
-          sub = "Euclidean distance", k = 6)
-dev.off()
-
 savepdf("output/plots/nclusters")
 fviz_nbclust(x = dt, FUNcluster = kmeans, method = "silhouette", k.max = 15) +
   labs(title = "Number of clusters")
 dev.off()
 
-hk = hkmeans(x = dt, hc.metric = "euclidean", hc.method = "complete", k = 5)
+hc = hcut(dt, 6)
+savepdf("output/plots/dendogram", width = 18, height = 18)
+fviz_dend(x = hc, cex = 0.5, k = 6)
+dev.off()
+
+savepdf("output/plots/silhouette")
+fviz_silhouette(hc)
+dev.off()
+
+
+# hk = hkmeans(x = dt, hc.metric = "euclidean", hc.method = "complete", k = 7)
+hk = kmeans(x = dt, 7)
 savepdf("output/plots/clusters")
-fviz_cluster(object = hk, palette = "Set2", repel = TRUE) +
-  theme_bw() + labs(title = "Hierarchical k-means clustering")
+fviz_cluster(object = hc, data = dt, palette = "Set2", repel = TRUE) +
+  theme_bw() + labs(title = "Clustering")
 dev.off()
 
 # create plot grouping by cluster 
-colors = brewer.pal(5, "Set2")
+colors = brewer.pal(6, "Set2")
 shifts = readRDS("output/data/shifts.rds")
-cluster = data.table(lctry = names(hk$cluster), cluster = hk$cluster)
+cluster = data.table(lctry = names(hc$cluster), cluster = hc$cluster)
 setorder(cluster, cluster)
 lab_order = as.character(cluster$lctry)
 cluster[, color :=  colors[cluster]]

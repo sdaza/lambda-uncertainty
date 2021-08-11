@@ -7,6 +7,7 @@
 # decimals
 specify_decimal = function(x, k) trimws(format(round(x, k), nsmall=k))
 
+
 # get original values from weibull transformation
 transWeibull = function(x, maxvalue = 100) {
     y = x / (maxvalue + 1.05)

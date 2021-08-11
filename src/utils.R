@@ -320,8 +320,8 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
         rm(check)
 
         results$models = model@stanfit
-        results$predictions = predictData(model, ex_max = ex_max, n = 100)
-        results$shifts = computeShift(model, newdata, ex_max, n = 100)
+        results$predictions = predictData(model, ex_max = ex_max, n = n)
+        results$shifts = computeShift(model, newdata, ex_max, n = n)
         fit_ss = rstan::extract(model@stanfit, pars = c("pred", "sigma"))
         results$r2 = bayes_R2(fit_ss$pred, fit_ss$sigma)
         rm(fit_ss, model)
@@ -356,11 +356,11 @@ runModel = function(flist, samples, chains = 1, iterations = 2000,
     
     return(
         list(
-            "fit" = rstan::sflist2stanfit(models), 
-            "shifts" = rbindlist(shifts), 
+            "fit" = rstan::sflist2stanfit(models),
+            "shifts" = rbindlist(shifts),
             "predictions" = pred,
             "r2" = median(r2),
-            "rhat" = sum(rhat), 
+            "rhat" = sum(rhat),
             "neff" = sum(neff)
         )
     )
